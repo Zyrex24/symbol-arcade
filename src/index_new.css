@@ -20,7 +20,7 @@
 
 @layer components {
   .game-card {
-    @apply bg-white bg-opacity-90 backdrop-blur-sm rounded-2xl shadow-2xl p-8 max-w-md mx-auto animate-bounce-in;
+    @apply bg-white/90 backdrop-blur-sm rounded-2xl shadow-2xl p-8 max-w-md mx-auto animate-bounce-in;
   }
 
   .game-button {
