@@ -34,6 +34,14 @@ for src in "$CPP_DIR"/*.cpp; do
         # Copy to public directory
         cp "$BUILD_DIR/$base.js" "$PUBLIC_DIR/"
         cp "$BUILD_DIR/$base.wasm" "$PUBLIC_DIR/"
+    elif [ "$base" == "Snake" ]; then
+        emcc $src -O3 --no-entry -s WASM=1 -s MODULARIZE=1 -s EXPORT_NAME="Module" \
+          -s EXPORTED_FUNCTIONS="['_snake_start_game','_snake_reset','_snake_set_direction','_snake_tick','_snake_is_game_over','_snake_get_score','_snake_get_width','_snake_get_height','_snake_get_board','_snake_get_cell']" \
+          -s EXPORTED_RUNTIME_METHODS="['cwrap','ccall']" \
+          -o "$BUILD_DIR/$base.js"
+        # Copy to public directory
+        cp "$BUILD_DIR/$base.js" "$PUBLIC_DIR/"
+        cp "$BUILD_DIR/$base.wasm" "$PUBLIC_DIR/"
     fi
     # each game will be an elif block
 done
