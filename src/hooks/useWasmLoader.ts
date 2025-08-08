@@ -22,11 +22,28 @@ export function useWasmLoader(moduleName: string) {
   const wasmRef = useRef<WasmModule | null>(null);
   const [isLoaded, setIsLoaded] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  // Guard to avoid duplicate loads/instantiation in React StrictMode
+  const loadedRef = useRef(false);
 
   useEffect(() => {
     const loadWasm = async () => {
       try {
-        // Remove any existing script
+        // Simple cache of instantiated modules keyed by moduleName
+        const g = window as any;
+        g.__wasmModules = g.__wasmModules || {};
+        if (g.__wasmModules[moduleName]) {
+          wasmRef.current = g.__wasmModules[moduleName] as WasmModule;
+          setIsLoaded(true);
+          return;
+        }
+
+        if (loadedRef.current) {
+          // Already loading/loaded in this component lifecycle
+          return;
+        }
+        loadedRef.current = true;
+
+        // Remove any existing script tag with the same src
         const existingScript = document.querySelector(
           `script[src="/wasm/${moduleName}.js"]`
         );
@@ -41,18 +58,28 @@ export function useWasmLoader(moduleName: string) {
 
         script.onload = async () => {
           try {
-            // Wait a bit for the Module to be available
-            await new Promise((resolve) => setTimeout(resolve, 200));
+            // Wait a bit for the Module factory to be available
+            await new Promise((resolve) => setTimeout(resolve, 100));
 
-            // TypeScript assertion for the Module function
             const moduleLoader = (window as any).Module;
             if (moduleLoader) {
+              // If someone else already instantiated while we were loading, reuse it
+              if (g.__wasmModules[moduleName]) {
+                wasmRef.current = g.__wasmModules[moduleName] as WasmModule;
+                setIsLoaded(true);
+                return;
+              }
+
               const mod = await moduleLoader();
               console.log(`[WASM LOADER] Loaded module for ${moduleName}:`, mod);
               wasmRef.current = mod;
-              // Log available keys for debugging
+              // Cache for reuse across mounts/renders
+              g.__wasmModules[moduleName] = mod;
               if (mod) {
-                console.log(`[WASM LOADER] Exported keys for ${moduleName}:`, Object.keys(mod));
+                console.log(
+                  `[WASM LOADER] Exported keys for ${moduleName}:`,
+                  Object.keys(mod)
+                );
               }
               setIsLoaded(true);
             } else {
@@ -61,7 +88,10 @@ export function useWasmLoader(moduleName: string) {
             }
           } catch (err: unknown) {
             const message = err instanceof Error ? err.message : String(err);
-            console.error(`[WASM LOADER] Failed to initialize ${moduleName}:`, message);
+            console.error(
+              `[WASM LOADER] Failed to initialize ${moduleName}:`,
+              message
+            );
             setError(`Failed to initialize ${moduleName}: ${message}`);
           }
         };
@@ -82,7 +112,7 @@ export function useWasmLoader(moduleName: string) {
     loadWasm();
 
     return () => {
-      // Cleanup function
+      // Do not delete the cached module. Only remove the script tag.
       const scriptToRemove = document.querySelector(
         `script[src="/wasm/${moduleName}.js"]`
       );

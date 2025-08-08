@@ -36,6 +36,13 @@ extern "C" {
         return board;
     }
 
+    // New: Get a single cell value as an int (char code), -1 if invalid index
+    EMSCRIPTEN_KEEPALIVE
+    int ttt_get_cell(int idx) {
+        if (idx < 0 || idx > 8) return -1;
+        return (int)board[idx];
+    }
+
     EMSCRIPTEN_KEEPALIVE
     int ttt_check_winner() {
         int wins[8][3] = {

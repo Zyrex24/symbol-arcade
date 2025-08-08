@@ -27,29 +27,48 @@ export default function TicTacToeGame({ onBack }: { onBack: () => void }) {
       setCurrentPlayer("X");
       setGameOver(false);
       setWinner("");
+    } else {
+      console.error("[WASM] _ttt_start_game is not available.");
     }
   };
 
   const updateBoard = () => {
-    if (!wasmRef.current?._ttt_get_board || !wasmRef.current?.HEAPU8) return;
+    const mod = wasmRef.current;
+    if (!mod) return;
 
     try {
-      const ptr = wasmRef.current._ttt_get_board();
-      if (ptr === 0) {
-        console.error("WASM failed to return board pointer.");
+      const boardData: string[] = [];
+
+      // Preferred: use accessor to avoid direct memory fiddling
+      if (typeof mod._ttt_get_cell === "function") {
+        for (let i = 0; i < 9; i++) {
+          const code = (mod as any)._ttt_get_cell(i) as number;
+          if (code === 32) boardData.push("");
+          else if (code > 0) boardData.push(String.fromCharCode(code));
+          else boardData.push("");
+        }
+      } else if (typeof mod._ttt_get_board === "function" && mod.HEAPU8) {
+        const ptr = mod._ttt_get_board();
+        if (ptr === 0) {
+          console.error("WASM failed to return board pointer.");
+          return;
+        }
+        for (let i = 0; i < 9; i++) {
+          const cell = mod.HEAPU8[ptr + i];
+          boardData.push(cell === 32 ? "" : String.fromCharCode(cell)); // 32 is ASCII for space
+        }
+      } else {
+        console.error("[WASM] Neither _ttt_get_cell nor _ttt_get_board+HEAPU8 is available.");
         return;
       }
 
-      const boardData = [];
-      for (let i = 0; i < 9; i++) {
-        const cell = wasmRef.current.HEAPU8[ptr + i];
-        boardData.push(cell === 32 ? "" : String.fromCharCode(cell)); // 32 is ASCII for space
-      }
       setBoard(boardData);
+      // Debug
+      console.log("[DEBUG] Board:", boardData.join("|"));
 
-      if (wasmRef.current._ttt_get_current_player) {
-        const playerCode = wasmRef.current._ttt_get_current_player();
-        setCurrentPlayer(String.fromCharCode(playerCode));
+      if (typeof mod._ttt_get_current_player === "function") {
+        const playerCode = mod._ttt_get_current_player();
+        if (playerCode) setCurrentPlayer(String.fromCharCode(playerCode));
       }
     } catch (err) {
       console.error("Error updating board:", err);
@@ -69,27 +88,30 @@ export default function TicTacToeGame({ onBack }: { onBack: () => void }) {
         return;
       }
 
-      // 2. Update the board state in React to show the move
-      updateBoard();
+      // 2. Optimistically update local UI state so the mark appears immediately
+      setBoard((prev) => prev.map((c, i) => (i === index ? currentPlayer : c)));
 
-      // 3. Check for a winner or a draw
+      // 3. Check for a winner or a draw using WASM state
       const winnerResult = wasmRef.current._ttt_check_winner?.();
-      if (winnerResult && (winnerResult === 'X'.charCodeAt(0) || winnerResult === 'O'.charCodeAt(0))) {
+      if (
+        winnerResult &&
+        (winnerResult === "X".charCodeAt(0) || winnerResult === "O".charCodeAt(0))
+      ) {
         setGameOver(true);
         setWinner(String.fromCharCode(winnerResult));
         return; // Game is over, no need to switch player
-      } else if (winnerResult && winnerResult === 'D'.charCodeAt(0)) {
+      } else if (winnerResult && winnerResult === "D".charCodeAt(0)) {
         setGameOver(true);
         setWinner("Draw");
         return; // Game is over
       }
 
-      // 4. If the game is not over, switch to the next player
+      // 4. If the game is not over, switch to the next player in WASM and locally
       wasmRef.current._ttt_next_player?.();
+      setCurrentPlayer((p) => (p === "X" ? "O" : "X"));
 
-      // 5. Update the UI again to reflect the player change
+      // 5. Try to sync from WASM (no-op if accessors missing)
       updateBoard();
-
     } catch (err) {
       console.error("Error during handleCellClick:", err);
     }

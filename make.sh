@@ -28,7 +28,7 @@ for src in "$CPP_DIR"/*.cpp; do
         cp "$BUILD_DIR/$base.wasm" "$PUBLIC_DIR/"
     elif [ "$base" == "TicTacToe" ]; then
         emcc $src -O3 --no-entry -s WASM=1 -s MODULARIZE=1 -s EXPORT_NAME="Module" \
-          -s EXPORTED_FUNCTIONS="['_malloc','_free','_ttt_start_game','_ttt_get_current_player','_ttt_make_move','_ttt_next_player','_ttt_get_board','_ttt_check_winner']" \
+          -s EXPORTED_FUNCTIONS="['_malloc','_free','_ttt_start_game','_ttt_get_current_player','_ttt_make_move','_ttt_next_player','_ttt_get_board','_ttt_get_cell','_ttt_check_winner']" \
           -s EXPORTED_RUNTIME_METHODS="['cwrap','ccall']" \
           -o "$BUILD_DIR/$base.js"
         # Copy to public directory
