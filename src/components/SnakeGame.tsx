@@ -26,6 +26,8 @@ export default function SnakeGame({ onBack }: { onBack: () => void }) {
   const [height, setHeight] = useState(20);
   const [board, setBoard] = useState<(string | number)[]>([]);
   const [debug, setDebug] = useState(false);
+  const [paused, setPaused] = useState(false);
+  const [speedMs, setSpeedMs] = useState(120);
   const loopRef = useRef<number | null>(null);
 
   const readBoard = useCallback(() => {
@@ -74,6 +76,7 @@ export default function SnakeGame({ onBack }: { onBack: () => void }) {
       mod._snake_start_game();
       setGameOver(false);
       setScore(0);
+      setPaused(false);
       readBoard();
       if (debug) {
         // eslint-disable-next-line no-console
@@ -123,10 +126,10 @@ export default function SnakeGame({ onBack }: { onBack: () => void }) {
     if (!mod) return;
 
     const tick = () => {
-      if (gameOver) return;
+      if (gameOver || paused) return;
       const ok = mod._snake_tick?.();
       if (ok) readBoard();
-      loopRef.current = window.setTimeout(tick, 120) as unknown as number;
+      loopRef.current = window.setTimeout(tick, speedMs) as unknown as number;
     };
 
     tick();
@@ -134,7 +137,7 @@ export default function SnakeGame({ onBack }: { onBack: () => void }) {
       if (loopRef.current) window.clearTimeout(loopRef.current as number);
       loopRef.current = null;
     };
-  }, [gameOver, isLoaded, readBoard, wasmRef]);
+  }, [gameOver, paused, speedMs, isLoaded, readBoard, wasmRef]);
 
   const gridStyle = useMemo(() => ({
     gridTemplateColumns: `repeat(${width}, 1fr)`,
@@ -188,6 +191,9 @@ export default function SnakeGame({ onBack }: { onBack: () => void }) {
           {gameOver && (
             <div className="px-3 py-1 rounded-lg bg-red-600 shadow">Game Over</div>
           )}
+          {paused && !gameOver && (
+            <div className="px-3 py-1 rounded-lg bg-yellow-600 shadow">Paused</div>
+          )}
         </div>
 
         {/* Board */}
@@ -208,12 +214,19 @@ export default function SnakeGame({ onBack }: { onBack: () => void }) {
         </div>
 
         {/* Actions */}
-        <div className="flex items-center gap-2 mt-2">
+        <div className="flex flex-wrap items-center gap-2 mt-2 justify-center">
           <button
             className="px-4 py-2 rounded-xl bg-blue-600 text-white font-medium shadow hover:shadow-lg hover:-translate-y-0.5 transition"
             onClick={startGame}
           >
             {gameOver ? 'Play Again' : 'Restart'}
+          </button>
+          <button
+            className={`px-4 py-2 rounded-xl ${paused ? 'bg-green-600 text-white' : 'bg-gray-700 text-white'} font-medium shadow`}
+            onClick={() => setPaused((p) => !p)}
+            aria-pressed={paused}
+          >
+            {paused ? 'Resume' : 'Pause'}
           </button>
           <button
             className="px-3 py-2 rounded-lg bg-gray-700 text-white text-sm"
@@ -229,6 +242,58 @@ export default function SnakeGame({ onBack }: { onBack: () => void }) {
           >
             Debug: {debug ? 'On' : 'Off'}
           </button>
+          <label className="flex items-center gap-2 text-sm text-gray-800 bg-white px-3 py-2 rounded-lg shadow">
+            <span>Speed</span>
+            <input
+              type="range"
+              min={60}
+              max={300}
+              step={10}
+              value={speedMs}
+              onChange={(e) => setSpeedMs(Number(e.target.value))}
+              aria-label="Adjust speed"
+            />
+            <span>{speedMs}ms</span>
+          </label>
+        </div>
+
+        {/* Mobile D-pad */}
+        <div className="grid grid-cols-3 gap-2 sm:hidden mt-2">
+          <div />
+          <button
+            className="px-3 py-2 rounded-lg bg-gray-700 text-white"
+            onClick={() => (wasmRef.current as any)?._snake_set_direction?.(0)}
+            aria-label="Move up"
+          >
+            ↑
+          </button>
+          <div />
+          <button
+            className="px-3 py-2 rounded-lg bg-gray-700 text-white"
+            onClick={() => (wasmRef.current as any)?._snake_set_direction?.(3)}
+            aria-label="Move left"
+          >
+            ←
+          </button>
+          <button className="px-3 py-2 rounded-lg bg-gray-700 text-white" onClick={tickOnce} aria-label="Tick">
+            ·
+          </button>
+          <button
+            className="px-3 py-2 rounded-lg bg-gray-700 text-white"
+            onClick={() => (wasmRef.current as any)?._snake_set_direction?.(1)}
+            aria-label="Move right"
+          >
+            →
+          </button>
+          <div />
+          <button
+            className="px-3 py-2 rounded-lg bg-gray-700 text-white"
+            onClick={() => (wasmRef.current as any)?._snake_set_direction?.(2)}
+            aria-label="Move down"
+          >
+            ↓
+          </button>
+          <div />
         </div>
 
         {debug && (

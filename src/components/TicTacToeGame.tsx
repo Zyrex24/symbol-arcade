@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useMemo } from "react";
 import { useWasmLoader } from "../hooks/useWasmLoader";
 import GameContainer from "./GameContainer";
 
@@ -10,6 +10,7 @@ export default function TicTacToeGame({ onBack }: { onBack: () => void }) {
   const [currentPlayer, setCurrentPlayer] = useState<string>("X");
   const [gameOver, setGameOver] = useState<boolean>(false);
   const [winner, setWinner] = useState<string>("");
+  const [winLine, setWinLine] = useState<number[] | null>(null);
 
   useEffect(() => {
     if (isLoaded) {
@@ -27,6 +28,7 @@ export default function TicTacToeGame({ onBack }: { onBack: () => void }) {
       setCurrentPlayer("X");
       setGameOver(false);
       setWinner("");
+      setWinLine(null);
     } else {
       console.error("[WASM] _ttt_start_game is not available.");
     }
@@ -83,6 +85,26 @@ export default function TicTacToeGame({ onBack }: { onBack: () => void }) {
         ) {
           setGameOver(true);
           setWinner(String.fromCharCode(winnerResult));
+          // Compute winning line for highlight
+          const wins: number[][] = [
+            [0, 1, 2],
+            [3, 4, 5],
+            [6, 7, 8],
+            [0, 3, 6],
+            [1, 4, 7],
+            [2, 5, 8],
+            [0, 4, 8],
+            [2, 4, 6],
+          ];
+          const found = wins.find((line) => {
+            const [a, b, c] = line;
+            return (
+              board[a] !== EMPTY_CELL &&
+              board[a] === board[b] &&
+              board[b] === board[c]
+            );
+          });
+          setWinLine(found || null);
           return;
         } else if (winnerResult && winnerResult === "D".charCodeAt(0)) {
           setGameOver(true);
@@ -133,15 +155,17 @@ export default function TicTacToeGame({ onBack }: { onBack: () => void }) {
         </div>
 
         {/* Board */}
-        <div className="grid grid-cols-3 gap-1 bg-gray-900 p-1.5 rounded-xl shadow-2xl">
+        <div className="grid grid-cols-3 gap-1 bg-gray-900 p-1.5 rounded-xl shadow-2xl" role="grid" aria-label="Tic Tac Toe board">
           {board.map((value, index) => (
             <button
               key={index}
               onClick={() => handleCellClick(index)}
               disabled={gameOver || value !== EMPTY_CELL}
               className={`aspect-square rounded-md border-2 border-gray-800 flex items-center justify-center text-4xl font-extrabold transition 
-                ${value === 'X' ? 'bg-red-50 text-red-600' : value === 'O' ? 'bg-emerald-50 text-emerald-700' : 'bg-white text-gray-800 hover:bg-gray-50'}`}
+                ${value === 'X' ? 'bg-red-50 text-red-600' : value === 'O' ? 'bg-emerald-50 text-emerald-700' : 'bg-white text-gray-800 hover:bg-gray-50'}
+                ${winLine && winLine.includes(index) ? 'ring-4 ring-yellow-400' : ''}`}
               aria-label={`cell-${index}`}
+              role="gridcell"
             >
               {value}
             </button>
@@ -161,6 +185,16 @@ export default function TicTacToeGame({ onBack }: { onBack: () => void }) {
               Play Again
             </button>
           </div>
+        )}
+        {!gameOver && (
+          <button
+            onClick={startNewGame}
+            className="px-4 py-2 rounded-lg bg-gray-200 text-gray-800"
+            title="Restart game"
+            aria-label="Restart game"
+          >
+            Reset
+          </button>
         )}
       </div>
     </GameContainer>
