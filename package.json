@@ -4,13 +4,18 @@
   "version": "0.0.0",
   "type": "module",
   "scripts": {
+    "prebuild": "bash make.sh",
+    "predev": "bash make.sh",
     "dev": "vite",
+    "dev:watch": "concurrently \"bun run wasm:watch\" \"vite\"",
     "build": "tsc -b && vite build",
     "lint": "eslint .",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "wasm:build": "bash make.sh",
+    "wasm:clean": "bash make.sh clean",
+    "wasm:watch": "nodemon --watch cpp --ext cpp --exec \"bash make.sh\""
   },
   "dependencies": {
-    "@tailwindcss/postcss": "^4.1.11",
     "react": "^19.1.0",
     "react-dom": "^19.1.0"
   },
@@ -20,12 +25,14 @@
     "@types/react-dom": "^19.1.6",
     "@vitejs/plugin-react-swc": "^3.10.2",
     "autoprefixer": "^10.4.21",
+    "concurrently": "^9.2.0",
     "eslint": "^9.30.1",
     "eslint-plugin-react-hooks": "^5.2.0",
     "eslint-plugin-react-refresh": "^0.4.20",
     "globals": "^16.3.0",
+    "nodemon": "^3.1.10",
     "postcss": "^8.5.6",
-    "tailwindcss": "^4.1.11",
+    "tailwindcss": "^3.4.0",
     "typescript": "~5.8.3",
     "typescript-eslint": "^8.35.1",
     "vite": "^7.0.4"
