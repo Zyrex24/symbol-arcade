@@ -25,7 +25,7 @@ export default function SnakeGame({ onBack }: { onBack: () => void }) {
   const [width, setWidth] = useState(20);
   const [height, setHeight] = useState(20);
   const [board, setBoard] = useState<(string | number)[]>([]);
-  const [debug, setDebug] = useState(false);
+  const [debug, setDebug] = useState(true); // Enable debug by default to see what's happening
   const loopRef = useRef<number | null>(null);
 
   const readBoard = useCallback(() => {
@@ -39,15 +39,23 @@ export default function SnakeGame({ onBack }: { onBack: () => void }) {
 
     const cells: (string | number)[] = [];
     if (typeof mod._snake_get_cell === "function") {
+      console.log("[SNAKE] Using _snake_get_cell method");
       for (let i = 0; i < w * h; i++) {
         const v: number = mod._snake_get_cell(i);
-        cells.push(v);
+        // Convert character codes to actual characters
+        const char = v > 0 ? String.fromCharCode(v) : '';
+        cells.push(char);
+        if (i < 10) console.log(`[SNAKE] Cell ${i}: code=${v}, char='${char}'`);
       }
     } else if (typeof mod._snake_get_board === "function" && (mod as any).HEAPU8) {
+      console.log("[SNAKE] Using _snake_get_board method");
       const ptr = mod._snake_get_board();
       const heap = (mod as any).HEAPU8 as Uint8Array;
       for (let i = 0; i < w * h; i++) {
-        cells.push(heap[ptr + i]);
+        const byte = heap[ptr + i];
+        const char = byte > 0 ? String.fromCharCode(byte) : '';
+        cells.push(char);
+        if (i < 10) console.log(`[SNAKE] Cell ${i}: byte=${byte}, char='${char}'`);
       }
     }
 
@@ -62,8 +70,10 @@ export default function SnakeGame({ onBack }: { onBack: () => void }) {
 
     if (debug) {
       const unique = Array.from(new Set(cells)).slice(0, 10);
-      // eslint-disable-next-line no-console
       console.log("[SNAKE] board sample unique values:", unique, "w*h=", w * h);
+      console.log("[SNAKE] Snake cells:", cells.filter(c => c === 'S').length);
+      console.log("[SNAKE] Food cells:", cells.filter(c => c === 'F').length);
+      console.log("[SNAKE] Empty cells:", cells.filter(c => c === ' ' || c === '').length);
     }
   }, [wasmRef, debug]);
 
@@ -142,19 +152,22 @@ export default function SnakeGame({ onBack }: { onBack: () => void }) {
   }), [width]);
 
   const classifyCell = (raw: string | number): string => {
-    // Support both numeric codes and ASCII chars
+    // Convert to string if it's a number (character code)
+    let char = '';
     if (typeof raw === "number") {
-      if (raw === 0) return "empty";
-      // Heuristic: some implementations use 1/2/3 codes
-      if (raw === 2) return "snake";
-      if (raw === 3) return "food";
-      // Any non-zero -> visible cell so we can see there IS a board
-      return "snake";
+      char = raw > 0 ? String.fromCharCode(raw) : '';
+    } else {
+      char = String(raw);
     }
-    if (raw === "S") return "snake";
-    if (raw === "F") return "food";
-    if (raw.trim() === "") return "empty";
-    return "snake";
+    
+    // Check for snake, food, and empty
+    if (char === 'S') return "snake";
+    if (char === 'F') return "food";
+    if (char === ' ' || char === '' || char.trim() === '') return "empty";
+    
+    // Fallback for any unexpected values
+    if (debug) console.warn(`[SNAKE] Unknown cell value: raw=${raw}, char='${char}'`);
+    return "empty";
   };
 
   if (error) {
