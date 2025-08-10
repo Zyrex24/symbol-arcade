@@ -26,6 +26,20 @@ interface WasmModule {
   _snake_get_cell?: (index: number) => number;
   _snake_get_score?: () => number;
   _snake_is_game_over?: () => number;
+  // Rock Paper Scissors functions
+  _rps_start_game?: () => void;
+  _rps_reset_stats?: () => void;
+  _rps_make_choice?: (choice: number) => number;
+  _rps_new_round?: () => void;
+  _rps_get_player_choice?: () => number;
+  _rps_get_computer_choice?: () => number;
+  _rps_get_result?: () => number;
+  _rps_is_game_ready?: () => number;
+  _rps_show_result?: () => number;
+  _rps_get_player_wins?: () => number;
+  _rps_get_computer_wins?: () => number;
+  _rps_get_ties?: () => number;
+  _rps_get_total_games?: () => number;
 }
 
 export function useWasmLoader(moduleName: string) {
