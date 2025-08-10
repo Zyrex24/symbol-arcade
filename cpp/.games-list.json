@@ -1,5 +1,6 @@
 [
   "GuessTheNumber.cpp",
+  "Pacman.cpp",
   "Snake.cpp",
   "TicTacToe.cpp"
 ]
