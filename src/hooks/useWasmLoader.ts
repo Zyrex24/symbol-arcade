@@ -16,6 +16,16 @@ interface WasmModule {
   _ttt_get_board?: () => number;
   _ttt_check_winner?: () => number;
   _ttt_reset?: () => void;
+  // Snake functions
+  _snake_start_game?: () => void;
+  _snake_set_direction?: (direction: number) => void;
+  _snake_tick?: () => number;
+  _snake_update?: () => number;
+  _snake_get_width?: () => number;
+  _snake_get_height?: () => number;
+  _snake_get_cell?: (index: number) => number;
+  _snake_get_score?: () => number;
+  _snake_is_game_over?: () => number;
 }
 
 export function useWasmLoader(moduleName: string) {
@@ -71,7 +81,10 @@ export function useWasmLoader(moduleName: string) {
               }
 
               const mod = await moduleLoader();
-              console.log(`[WASM LOADER] Loaded module for ${moduleName}:`, mod);
+              console.log(
+                `[WASM LOADER] Loaded module for ${moduleName}:`,
+                mod
+              );
               wasmRef.current = mod;
               // Cache for reuse across mounts/renders
               g.__wasmModules[moduleName] = mod;

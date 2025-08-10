@@ -5,7 +5,6 @@
   "type": "module",
   "scripts": {
     "prebuild": "bash make.sh",
-    "predev": "bash make.sh",
     "dev": "vite",
     "dev:watch": "concurrently \"bun run wasm:watch\" \"vite\"",
     "build": "tsc -b && vite build",

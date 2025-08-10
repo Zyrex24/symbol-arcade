@@ -1,5 +1,6 @@
 #include <emscripten.h>
 #include <cstring>
+#include <chrono>
 
 extern "C" {
   // Board dimensions
@@ -16,11 +17,17 @@ extern "C" {
 
   // Direction: 0=Up,1=Right,2=Down,3=Left
   static int dir;
+  static int next_dir; // Buffer next direction to prevent invalid moves
 
   // Game state
   static int game_over;
   static int score;
   static int moves;
+  static bool game_running;
+
+  // Timing - C++ handles its own pace
+  static auto last_move_time = std::chrono::steady_clock::now();
+  static const int MOVE_INTERVAL_MS = 150; // Game speed
 
   static void clear_board() {
     memset(board, ' ', MAX_CELLS);
@@ -38,6 +45,7 @@ extern "C" {
       board[snake_positions[i]] = 'S';
     }
     dir = 1; // Right
+    next_dir = 1; // Initialize next direction
   }
 
   static unsigned int rng_state = 1234567u;
@@ -71,8 +79,10 @@ extern "C" {
     game_over = 0;
     score = 0;
     moves = 0;
+    game_running = true;
     place_snake_initial();
     spawn_food();
+    last_move_time = std::chrono::steady_clock::now();
   }
 
   EMSCRIPTEN_KEEPALIVE
@@ -82,14 +92,97 @@ extern "C" {
 
   EMSCRIPTEN_KEEPALIVE
   void snake_set_direction(int newDir) {
-    if (newDir < 0 || newDir > 3) return;
-    // prevent reversing directly
-    // up<->down (0 vs 2), left<->right (1 vs 3)
-    if ((dir == 0 && newDir == 2) || (dir == 2 && newDir == 0)) return;
-    if ((dir == 1 && newDir == 3) || (dir == 3 && newDir == 1)) return;
-    dir = newDir;
+    if (newDir < 0 || newDir > 3 || game_over) return;
+    
+    // Buffer the direction change to apply on next move
+    // This prevents multiple direction changes between moves
+    next_dir = newDir;
   }
 
+  // Autonomous update function - handles its own timing
+  EMSCRIPTEN_KEEPALIVE
+  int snake_update() {
+    if (!game_running || game_over) return 0;
+    
+    // Check if enough time has passed for next move
+    auto now = std::chrono::steady_clock::now();
+    auto elapsed = std::chrono::duration_cast<std::chrono::milliseconds>(now - last_move_time).count();
+    
+    if (elapsed < MOVE_INTERVAL_MS) {
+      return 1; // Still alive, but not time to move yet
+    }
+    
+    // Apply buffered direction change with validation
+    if (next_dir != dir) {
+      // Prevent reversing directly
+      bool valid = true;
+      if ((dir == 0 && next_dir == 2) || (dir == 2 && next_dir == 0)) valid = false; // up<->down
+      if ((dir == 1 && next_dir == 3) || (dir == 3 && next_dir == 1)) valid = false; // right<->left
+      
+      if (valid) {
+        dir = next_dir;
+      }
+    }
+    
+    last_move_time = now;
+    moves++;
+
+    int head = snake_positions[snake_length - 1];
+    int hr = head / W;
+    int hc = head % W;
+    if (dir == 0) hr -= 1;      // up
+    else if (dir == 1) hc += 1; // right
+    else if (dir == 2) hr += 1; // down
+    else if (dir == 3) hc -= 1; // left
+
+    // Wall collision
+    if (hr < 0 || hr >= H || hc < 0 || hc >= W) {
+      game_over = 1;
+      game_running = false;
+      return 0;
+    }
+
+    int newHead = hr * W + hc;
+
+    // Self collision
+    if (board[newHead] == 'S') {
+      // Check if this is the tail and we're not growing
+      int tail = snake_positions[0];
+      if (newHead != tail || board[newHead] == 'F') {
+        game_over = 1;
+        game_running = false;
+        return 0;
+      }
+    }
+
+    int ateFood = (board[newHead] == 'F');
+
+    // Move: if not growing, clear tail
+    if (!ateFood) {
+      int tail = snake_positions[0];
+      board[tail] = ' ';
+      // shift positions left
+      for (int i = 1; i < snake_length; ++i) {
+        snake_positions[i - 1] = snake_positions[i];
+      }
+      snake_positions[snake_length - 1] = newHead;
+    } else {
+      // grow: append new head without removing tail
+      snake_positions[snake_length] = newHead;
+      snake_length++;
+      score += 1;
+    }
+
+    board[newHead] = 'S';
+
+    if (ateFood) {
+      spawn_food();
+    }
+
+    return 1;
+  }
+
+  // Manual tick function for debug purposes
   EMSCRIPTEN_KEEPALIVE
   int snake_tick() {
     if (game_over) return 0;
