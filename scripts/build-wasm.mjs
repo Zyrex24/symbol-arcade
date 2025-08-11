@@ -105,6 +105,18 @@ async function buildOne(src) {
       "_pacman_get_height",
       "_pacman_get_cell",
     ];
+  } else if (base === "FlappyBird") {
+    exportedFunctions = [
+      "_flappy_start_game",
+      "_flappy_flap",
+      "_flappy_tick",
+      "_flappy_update",
+      "_flappy_is_game_over",
+      "_flappy_get_score",
+      "_flappy_get_width",
+      "_flappy_get_height",
+      "_flappy_get_cell",
+    ];
   } else {
     console.log(`Skipping unknown C++ source ${base}.cpp`);
     return;
