@@ -21,8 +21,8 @@ export default function PacmanGame({ onBack }: { onBack: () => void }) {
   const { wasmRef, isLoaded, error } = useWasmLoader("Pacman");
   const [gameOver, setGameOver] = useState(false);
   const [score, setScore] = useState(0);
-  const [width, setWidth] = useState(19);
-  const [height, setHeight] = useState(21);
+  const [width, setWidth] = useState(28);
+  const [height, setHeight] = useState(31);
   const [board, setBoard] = useState<(string | number)[]>([]);
   const [debug, setDebug] = useState(false);
   const [gameError, setGameError] = useState<string | null>(null);
@@ -126,6 +126,7 @@ export default function PacmanGame({ onBack }: { onBack: () => void }) {
     else char = String(raw);
     if (char === "#") return "wall";
     if (char === ".") return "pellet";
+    if (char === "o") return "power";
     if (char === "P") return "pacman";
     if (char === "G") return "ghost";
     return "empty";
@@ -137,6 +138,15 @@ export default function PacmanGame({ onBack }: { onBack: () => void }) {
         <div key={i} className="relative aspect-square bg-gray-800 rounded-sm">
           <div className="absolute inset-0 flex items-center justify-center">
             <div className="w-1.5 h-1.5 bg-amber-300 rounded-full shadow" />
+          </div>
+        </div>
+      );
+    }
+    if (kind === "power") {
+      return (
+        <div key={i} className="relative aspect-square bg-gray-800 rounded-sm">
+          <div className="absolute inset-0 flex items-center justify-center">
+            <div className="w-3 h-3 bg-amber-300 rounded-full shadow" />
           </div>
         </div>
       );
