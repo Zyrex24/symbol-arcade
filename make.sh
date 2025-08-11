@@ -58,6 +58,14 @@ for src in "$CPP_DIR"/*.cpp; do
         # Copy to public directory
         cp "$BUILD_DIR/$base.js" "$PUBLIC_DIR/"
         cp "$BUILD_DIR/$base.wasm" "$PUBLIC_DIR/"
+    elif [ "$base" == "FlappyBird" ]; then
+        emcc $src -O3 --no-entry -s WASM=1 -s MODULARIZE=1 -s EXPORT_NAME="Module" \
+          -s EXPORTED_FUNCTIONS="['_flappy_start_game','_flappy_flap','_flappy_tick','_flappy_update','_flappy_is_game_over','_flappy_get_score','_flappy_get_width','_flappy_get_height','_flappy_get_cell']" \
+          -s EXPORTED_RUNTIME_METHODS="['cwrap','ccall']" \
+          -o "$BUILD_DIR/$base.js"
+        # Copy to public directory
+        cp "$BUILD_DIR/$base.js" "$PUBLIC_DIR/"
+        cp "$BUILD_DIR/$base.wasm" "$PUBLIC_DIR/"
     fi
     # each game will be an elif block
 done
