@@ -31,7 +31,21 @@ export default function App() {
   const Footer = (
     <footer className="w-full text-center text-xs text-white/70 py-4 mt-8">
       <span>
-        &copy; {new Date().getFullYear()} WASM Arcade &mdash;{" "}
+        &copy; {new Date().getFullYear()} WASM Arcade by{" "}
+        <a
+          href="https://github.com/Zyrex24"
+          className="underline hover:text-white"
+        >
+          Zyrex24
+        </a>
+        {" & "}
+        <a
+          href="https://github.com/DIEMOS192"
+          className="underline hover:text-white"
+        >
+          DIEMOS192
+        </a>
+        {" — "}
         <a
           href="https://github.com/Zyrex24/symbol-arcade"
           className="underline hover:text-white"

@@ -1,8 +1,17 @@
 {
-  "name": "mini-games",
+  "name": "wasm-arcade",
   "private": true,
-  "version": "0.0.0",
+  "version": "1.0.0",
   "type": "module",
+  "description": "High-performance mini games arcade powered by WebAssembly and C++",
+  "keywords": ["WASM", "WebAssembly", "games", "arcade", "C++", "React", "TypeScript", "mini-games"],
+  "author": "Zyrex24, DIEMOS192",
+  "license": "MIT",
+  "homepage": "https://symbol-arcade.vercel.app",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/Zyrex24/symbol-arcade.git"
+  },
   "scripts": {
     "prebuild": "node scripts/build-wasm.mjs",
     "dev": "vite",
