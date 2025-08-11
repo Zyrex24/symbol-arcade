@@ -40,6 +40,7 @@ interface WasmModule {
   _rps_get_computer_wins?: () => number;
   _rps_get_ties?: () => number;
   _rps_get_total_games?: () => number;
+  _rps_get_win_rate?: () => number;
 }
 
 export function useWasmLoader(moduleName: string) {

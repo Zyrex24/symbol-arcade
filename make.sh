@@ -44,7 +44,7 @@ for src in "$CPP_DIR"/*.cpp; do
         cp "$BUILD_DIR/$base.wasm" "$PUBLIC_DIR/"
     elif [ "$base" == "RockPaperScissors" ]; then
         emcc $src -O3 --no-entry -s WASM=1 -s MODULARIZE=1 -s EXPORT_NAME="Module" \
-          -s EXPORTED_FUNCTIONS="['_rps_start_game','_rps_is_game_ready','_rps_make_choice','_rps_get_player_choice','_rps_get_computer_choice','_rps_get_result','_rps_show_result','_rps_new_round','_rps_get_player_wins','_rps_get_computer_wins','_rps_get_ties','_rps_get_total_games','_rps_reset_stats']" \
+          -s EXPORTED_FUNCTIONS="['_rps_start_game','_rps_is_game_ready','_rps_make_choice','_rps_get_player_choice','_rps_get_computer_choice','_rps_get_result','_rps_show_result','_rps_new_round','_rps_get_player_wins','_rps_get_computer_wins','_rps_get_ties','_rps_get_total_games','_rps_reset_stats','_rps_get_win_rate']" \
           -s EXPORTED_RUNTIME_METHODS="['cwrap','ccall']" \
           -o "$BUILD_DIR/$base.js"
         # Copy to public directory

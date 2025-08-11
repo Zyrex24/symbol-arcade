@@ -99,4 +99,10 @@ extern "C" {
   EMSCRIPTEN_KEEPALIVE int rps_get_computer_wins() { return computer_wins; }
   EMSCRIPTEN_KEEPALIVE int rps_get_ties() { return ties; }
   EMSCRIPTEN_KEEPALIVE int rps_get_total_games() { return total_games; }
+  
+  // Calculated statistics - pure C++ performance
+  EMSCRIPTEN_KEEPALIVE int rps_get_win_rate() { 
+    if (total_games == 0) return 0;
+    return (player_wins * 100) / total_games; // Integer math for speed
+  }
 }

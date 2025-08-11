@@ -30,6 +30,7 @@ export default function RockPaperScissorsGame({
     computerWins: 0,
     ties: 0,
     totalGames: 0,
+    winRate: 0,
   });
   const [gameError, setGameError] = useState<string | null>(null);
 
@@ -50,6 +51,7 @@ export default function RockPaperScissorsGame({
         computerWins: mod._rps_get_computer_wins?.() ?? 0,
         ties: mod._rps_get_ties?.() ?? 0,
         totalGames: mod._rps_get_total_games?.() ?? 0,
+        winRate: mod._rps_get_win_rate?.() ?? 0, // Pure C++ calculation
       });
     } catch (err) {
       console.error("Error updating game state:", err);
@@ -168,11 +170,7 @@ export default function RockPaperScissorsGame({
     );
   }
 
-  const winRate =
-    stats.totalGames > 0
-      ? Math.round((stats.playerWins / stats.totalGames) * 100)
-      : 0;
-
+  // Pure C++ performance - no JavaScript calculations!
   return (
     <GameContainer title="Rock Paper Scissors" onBack={onBack}>
       <div className="w-full max-w-md mx-auto space-y-6">
@@ -199,7 +197,7 @@ export default function RockPaperScissorsGame({
               <div className="text-yellow-100 text-xs">Ties</div>
             </div>
             <div className="bg-blue-600 rounded-lg p-2">
-              <div className="text-white font-bold text-lg">{winRate}%</div>
+              <div className="text-white font-bold text-lg">{stats.winRate}%</div>
               <div className="text-blue-100 text-xs">Win Rate</div>
             </div>
           </div>
