@@ -88,7 +88,7 @@ export default function App() {
         </div>
 
         {/* Games Grid */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-6 gap-6">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
           <button
             onClick={() => setCurrentGame("guess")}
             className="group relative overflow-hidden rounded-2xl bg-gradient-to-br from-sky-500 to-blue-600 text-white px-8 py-8 text-left shadow-xl hover:shadow-2xl transition-all duration-200 transform hover:-translate-y-1 focus:ring-4 focus:ring-sky-400/40"
