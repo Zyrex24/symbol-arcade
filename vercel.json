@@ -1,6 +1,7 @@
 {
   "framework": "vite",
   "buildCommand": "NODE_ENV=production npm run build",
+  "installCommand": "npm install --include=optional",
   "outputDirectory": "dist",
   "rewrites": [
     {

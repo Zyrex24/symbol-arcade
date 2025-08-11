@@ -3,6 +3,9 @@
   "private": true,
   "version": "1.0.0",
   "type": "module",
+  "engines": {
+    "node": ">=18.0.0"
+  },
   "description": "High-performance mini games arcade powered by WebAssembly and C++",
   "keywords": ["WASM", "WebAssembly", "games", "arcade", "C++", "React", "TypeScript", "mini-games"],
   "author": "Zyrex24, DIEMOS192",
@@ -25,7 +28,8 @@
   },
   "dependencies": {
     "react": "^19.1.0",
-    "react-dom": "^19.1.0"
+    "react-dom": "^19.1.0",
+    "@rollup/rollup-linux-x64-gnu": "^4.0.0"
   },
   "devDependencies": {
     "@eslint/js": "^9.30.1",
