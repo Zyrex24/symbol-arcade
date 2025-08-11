@@ -4,15 +4,15 @@
   "version": "0.0.0",
   "type": "module",
   "scripts": {
-    "prebuild": "bash make.sh",
+    "prebuild": "node scripts/build-wasm.mjs",
     "dev": "vite",
     "dev:watch": "concurrently \"bun run wasm:watch\" \"vite\"",
     "build": "tsc -b && vite build",
     "lint": "eslint .",
     "preview": "vite preview",
-    "wasm:build": "bash make.sh",
-    "wasm:clean": "bash make.sh clean",
-    "wasm:watch": "nodemon --watch cpp --ext cpp --exec \"bash make.sh\""
+    "wasm:build": "node scripts/build-wasm.mjs",
+    "wasm:clean": "rimraf wasm_build public/wasm && node scripts/build-wasm.mjs",
+    "wasm:watch": "nodemon --watch cpp --ext cpp --exec \"node scripts/build-wasm.mjs\""
   },
   "dependencies": {
     "react": "^19.1.0",

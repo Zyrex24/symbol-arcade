@@ -78,7 +78,7 @@ export function wasmBuilderPlugin() {
     isBuilding = true;
     console.log("🔧 Building WASM modules...");
 
-    const child = spawn("bash", ["make.sh"], {
+    const child = spawn(process.platform === 'win32' ? 'node' : 'node', ["scripts/build-wasm.mjs"], {
       stdio: "inherit",
       cwd: process.cwd(),
     });
