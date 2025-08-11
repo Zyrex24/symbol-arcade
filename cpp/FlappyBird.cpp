@@ -1,6 +1,7 @@
 #include <vector>
 #include <cstdlib>
 #include <ctime>
+#include <emscripten.h>
 
 // Minimal Flappy Bird clone for WASM export
 // Board is a simple character grid read from JS via _flappy_get_cell
@@ -10,7 +11,7 @@ extern "C" {
 // Game parameters
 static const int FB_WIDTH = 28;
 static const int FB_HEIGHT = 20;
-static const int PIPE_GAP = 5;      // vertical gap size
+static const int PIPE_GAP = 6;      // vertical gap size (easier)
 static const int PIPE_SPACING = 12; // columns between pipes
 static const int BIRD_X = 6;        // fixed x position of bird
 
@@ -57,16 +58,16 @@ static void fb_reset() {
 }
 
 // Public API
-int _flappy_get_width() { return FB_WIDTH; }
-int _flappy_get_height() { return FB_HEIGHT; }
-int _flappy_get_score() { return fb_score; }
-int _flappy_is_game_over() { return fb_game_over ? 1 : 0; }
+EMSCRIPTEN_KEEPALIVE int flappy_get_width() { return FB_WIDTH; }
+EMSCRIPTEN_KEEPALIVE int flappy_get_height() { return FB_HEIGHT; }
+EMSCRIPTEN_KEEPALIVE int flappy_get_score() { return fb_score; }
+EMSCRIPTEN_KEEPALIVE int flappy_is_game_over() { return fb_game_over ? 1 : 0; }
 
-void _flappy_start_game() { fb_reset(); }
+EMSCRIPTEN_KEEPALIVE void flappy_start_game() { fb_reset(); }
 
-void _flappy_flap() {
+EMSCRIPTEN_KEEPALIVE void flappy_flap() {
   if (fb_game_over) return;
-  birdVy = -3; // impulse upward
+  birdVy = -4; // stronger upward impulse
 }
 
 static void add_pipe_right() {
@@ -81,9 +82,11 @@ static void add_pipe_right() {
 static void update_physics() {
   if (fb_game_over) return;
 
-  // gravity
-  birdVy += 1;          // accelerate downwards
-  if (birdVy > 3) birdVy = 3; // clamp terminal velocity
+  // gravity (gentler): apply every other tick and clamp lower
+  if ((fb_tick % 2) == 0) {
+    birdVy += 1;          // accelerate downwards more slowly
+  }
+  if (birdVy > 2) birdVy = 2; // lower terminal velocity
   birdY += birdVy;
 
   // bounds check
@@ -122,17 +125,17 @@ static void update_physics() {
   }
 }
 
-int _flappy_tick() {
+EMSCRIPTEN_KEEPALIVE int flappy_tick() {
   if (fb_game_over) return 0;
   fb_tick += 1;
   update_physics();
   return fb_game_over ? 0 : 1;
 }
 
-int _flappy_update() { return _flappy_tick(); }
+EMSCRIPTEN_KEEPALIVE int flappy_update() { return flappy_tick(); }
 
 // Return board content as character code for flattened index
-int _flappy_get_cell(int index) {
+EMSCRIPTEN_KEEPALIVE int flappy_get_cell(int index) {
   if (index < 0) return 0;
   int w = FB_WIDTH;
   int h = FB_HEIGHT;
