@@ -67,7 +67,7 @@ EMSCRIPTEN_KEEPALIVE void flappy_start_game() { fb_reset(); }
 
 EMSCRIPTEN_KEEPALIVE void flappy_flap() {
   if (fb_game_over) return;
-  birdVy = -4; // stronger upward impulse
+  birdVy = -3; // midpoint impulse
 }
 
 static void add_pipe_right() {
@@ -82,11 +82,11 @@ static void add_pipe_right() {
 static void update_physics() {
   if (fb_game_over) return;
 
-  // gravity (gentler): apply every other tick and clamp lower
-  if ((fb_tick % 2) == 0) {
-    birdVy += 1;          // accelerate downwards more slowly
+  // gravity midpoint: apply on 3 out of every 4 ticks (avg 0.75 per tick)
+  if ((fb_tick % 4) != 0) {
+    birdVy += 1;
   }
-  if (birdVy > 2) birdVy = 2; // lower terminal velocity
+  if (birdVy > 3) birdVy = 3; // mid clamp
   birdY += birdVy;
 
   // bounds check
