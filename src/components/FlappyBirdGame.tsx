@@ -5,7 +5,6 @@ import { useWasmLoader } from "../hooks/useWasmLoader";
 export default function FlappyBirdGame({ onBack }: { onBack: () => void }) {
   const { wasmRef, isLoaded, error } = useWasmLoader("FlappyBird");
   const [width, setWidth] = useState(28);
-  const [height, setHeight] = useState(20);
   const [board, setBoard] = useState<(string | number)[]>([]);
   const [score, setScore] = useState(0);
   const [gameOver, setGameOver] = useState(false);
@@ -20,7 +19,6 @@ export default function FlappyBirdGame({ onBack }: { onBack: () => void }) {
       const w = mod._flappy_get_width?.() ?? 28;
       const h = mod._flappy_get_height?.() ?? 20;
       setWidth(w);
-      setHeight(h);
       const cells: (string | number)[] = [];
       if (mod._flappy_get_cell) {
         for (let i = 0; i < w * h; i++) {

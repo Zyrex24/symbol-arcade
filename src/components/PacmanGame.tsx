@@ -22,7 +22,6 @@ export default function PacmanGame({ onBack }: { onBack: () => void }) {
   const [gameOver, setGameOver] = useState(false);
   const [score, setScore] = useState(0);
   const [width, setWidth] = useState(28);
-  const [height, setHeight] = useState(31);
   const [board, setBoard] = useState<(string | number)[]>([]);
   const [debug, setDebug] = useState(false);
   const [gameError, setGameError] = useState<string | null>(null);
@@ -35,7 +34,6 @@ export default function PacmanGame({ onBack }: { onBack: () => void }) {
       const w = mod._pacman_get_width?.() ?? 19;
       const h = mod._pacman_get_height?.() ?? 21;
       setWidth(w);
-      setHeight(h);
       const cells: (string | number)[] = [];
       if (mod._pacman_get_cell) {
         for (let i = 0; i < w * h; i++) {
