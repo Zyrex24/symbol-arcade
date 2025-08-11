@@ -20,4 +20,14 @@ interface WasmModule {
   _ttt_get_board?: (ptr: number) => void;
   _ttt_check_winner?: () => number;
   _ttt_reset?: () => void;
+  // Pacman functions
+  _pacman_start_game?: () => void;
+  _pacman_set_direction?: (direction: number) => void;
+  _pacman_tick?: () => number;
+  _pacman_update?: () => number;
+  _pacman_get_width?: () => number;
+  _pacman_get_height?: () => number;
+  _pacman_get_cell?: (index: number) => number;
+  _pacman_get_score?: () => number;
+  _pacman_is_game_over?: () => number;
 }
