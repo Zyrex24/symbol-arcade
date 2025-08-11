@@ -53,6 +53,17 @@ interface WasmModule {
   _pacman_get_cell?: (index: number) => number;
   _pacman_get_score?: () => number;
   _pacman_is_game_over?: () => number;
+
+  // Flappy Bird
+  _flappy_start_game?: () => void;
+  _flappy_flap?: () => void;
+  _flappy_tick?: () => number;
+  _flappy_update?: () => number;
+  _flappy_get_width?: () => number;
+  _flappy_get_height?: () => number;
+  _flappy_get_cell?: (index: number) => number;
+  _flappy_get_score?: () => number;
+  _flappy_is_game_over?: () => number;
 }
 
 export function useWasmLoader(moduleName: string) {
