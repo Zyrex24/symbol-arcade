@@ -3,8 +3,9 @@ import GuessTheNumberGame from "./components/GuessTheNumberGame";
 import TicTacToeGame from "./components/TicTacToeGame";
 import SnakeGame from "./components/SnakeGame";
 import RockPaperScissorsGame from "./components/RockPaperScissorsGame";
+import PacmanGame from "./components/PacmanGame";
 
-type GameType = "menu" | "guess" | "tictactoe" | "snake" | "rps";
+type GameType = "menu" | "guess" | "tictactoe" | "snake" | "rps" | "pacman";
 
 export default function App() {
   const [currentGame, setCurrentGame] = useState<GameType>("menu");
@@ -71,6 +72,8 @@ export default function App() {
         return <SnakeGame onBack={() => setCurrentGame("menu")} />;
       case "rps":
         return <RockPaperScissorsGame onBack={() => setCurrentGame("menu")} />;
+      case "pacman":
+        return <PacmanGame onBack={() => setCurrentGame("menu")} />;
       default:
         return null;
     }
@@ -103,7 +106,7 @@ export default function App() {
         </div>
 
         {/* Games Grid */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-6">
           <button
             onClick={() => setCurrentGame("guess")}
             className="group relative overflow-hidden rounded-2xl bg-gradient-to-br from-sky-500 to-blue-600 text-white px-8 py-8 text-left shadow-xl hover:shadow-2xl transition-all duration-200 transform hover:-translate-y-1 focus:ring-4 focus:ring-sky-400/40"
@@ -161,6 +164,19 @@ export default function App() {
                 </div>
               </div>
               <div className="text-5xl">✂️</div>
+            </div>
+          </button>
+
+          <button
+            onClick={() => setCurrentGame("pacman")}
+            className="group relative overflow-hidden rounded-2xl bg-gradient-to-br from-yellow-400 to-amber-500 text-white px-8 py-8 text-left shadow-xl hover:shadow-2xl transition-all duration-200 transform hover:-translate-y-1 focus:ring-4 focus:ring-amber-300/40"
+          >
+            <div className="flex items-center justify-between">
+              <div>
+                <div className="text-3xl font-bold">Pacman</div>
+                <div className="text-white/90 mt-2 text-base">Eat pellets, avoid ghosts</div>
+              </div>
+              <div className="text-5xl">🟡</div>
             </div>
           </button>
         </div>

@@ -50,6 +50,14 @@ for src in "$CPP_DIR"/*.cpp; do
         # Copy to public directory
         cp "$BUILD_DIR/$base.js" "$PUBLIC_DIR/"
         cp "$BUILD_DIR/$base.wasm" "$PUBLIC_DIR/"
+    elif [ "$base" == "Pacman" ]; then
+        emcc $src -O3 --no-entry -s WASM=1 -s MODULARIZE=1 -s EXPORT_NAME="Module" \
+          -s EXPORTED_FUNCTIONS="['_pacman_start_game','_pacman_set_direction','_pacman_tick','_pacman_update','_pacman_is_game_over','_pacman_get_score','_pacman_get_width','_pacman_get_height','_pacman_get_cell']" \
+          -s EXPORTED_RUNTIME_METHODS="['cwrap','ccall']" \
+          -o "$BUILD_DIR/$base.js"
+        # Copy to public directory
+        cp "$BUILD_DIR/$base.js" "$PUBLIC_DIR/"
+        cp "$BUILD_DIR/$base.wasm" "$PUBLIC_DIR/"
     fi
     # each game will be an elif block
 done

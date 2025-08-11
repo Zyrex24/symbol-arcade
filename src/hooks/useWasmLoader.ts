@@ -26,6 +26,7 @@ interface WasmModule {
   _snake_get_cell?: (index: number) => number;
   _snake_get_score?: () => number;
   _snake_is_game_over?: () => number;
+
   // Rock Paper Scissors functions
   _rps_start_game?: () => void;
   _rps_reset_stats?: () => void;
@@ -41,6 +42,17 @@ interface WasmModule {
   _rps_get_ties?: () => number;
   _rps_get_total_games?: () => number;
   _rps_get_win_rate?: () => number;
+
+  // Pacman functions
+  _pacman_start_game?: () => void;
+  _pacman_set_direction?: (direction: number) => void;
+  _pacman_tick?: () => number;
+  _pacman_update?: () => number;
+  _pacman_get_width?: () => number;
+  _pacman_get_height?: () => number;
+  _pacman_get_cell?: (index: number) => number;
+  _pacman_get_score?: () => number;
+  _pacman_is_game_over?: () => number;
 }
 
 export function useWasmLoader(moduleName: string) {
