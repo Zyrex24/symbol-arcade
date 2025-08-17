@@ -207,13 +207,20 @@ export default function PacmanGame({ onBack }: { onBack: () => void }) {
     <GameContainer title="Pacman" onBack={onBack}>
       <div className="w-full flex flex-col items-center gap-3">
         <div className="flex items-center justify-center gap-3 text-white">
-          <div className="px-3 py-1 rounded-lg bg-yellow-500 shadow">Score: {score}</div>
+          <div className="px-3 py-1 rounded-lg bg-yellow-500 shadow">
+            Score: {score}
+          </div>
           {gameOver && (
-            <div className="px-3 py-1 rounded-lg bg-red-600 shadow">Game Over</div>
+            <div className="px-3 py-1 rounded-lg bg-red-600 shadow">
+              Game Over
+            </div>
           )}
         </div>
 
-        <div className="grid gap-1 bg-gray-900 p-1.5 rounded-xl shadow-2xl mx-auto" style={gridStyle}>
+        <div
+          className="grid gap-1 bg-gray-900 p-1.5 rounded-xl shadow-2xl mx-auto"
+          style={gridStyle}
+        >
           {board.map((v, i) => renderCell(classifyCell(v), i))}
         </div>
 
@@ -225,17 +232,19 @@ export default function PacmanGame({ onBack }: { onBack: () => void }) {
             {gameOver ? "Play Again" : "Restart"}
           </button>
           <button
-            className={`px-3 py-2 rounded-lg text-sm ${debug ? "bg-purple-600 text-white" : "bg-gray-300 text-gray-800"}`}
+            className={`px-3 py-2 rounded-lg text-sm ${
+              debug ? "bg-purple-600 text-white" : "bg-gray-300 text-gray-800"
+            }`}
             onClick={() => setDebug((d) => !d)}
             title="Toggle debug"
           >
             Debug: {debug ? "On" : "Off"}
           </button>
         </div>
-        <div className="text-gray-600 text-sm">Use Arrow Keys or WASD to move</div>
+        <div className="text-gray-600 text-sm">
+          Use Arrow Keys or WASD to move
+        </div>
       </div>
     </GameContainer>
   );
 }
-
-

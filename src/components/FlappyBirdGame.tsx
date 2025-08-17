@@ -67,7 +67,12 @@ export default function FlappyBirdGame({ onBack }: { onBack: () => void }) {
       if (mod?._flappy_flap) mod._flappy_flap();
     };
     const onKey = (e: KeyboardEvent) => {
-      if (e.key === " " || e.key === "ArrowUp" || e.key === "w" || e.key === "W") {
+      if (
+        e.key === " " ||
+        e.key === "ArrowUp" ||
+        e.key === "w" ||
+        e.key === "W"
+      ) {
         e.preventDefault();
         const mod = wasmRef.current as any;
         if (mod?._flappy_flap) mod._flappy_flap();
@@ -104,7 +109,8 @@ export default function FlappyBirdGame({ onBack }: { onBack: () => void }) {
           setBestScore((prev) => {
             const next = s > prev ? s : prev;
             try {
-              if (next > prev) localStorage.setItem("flappy_best", String(next));
+              if (next > prev)
+                localStorage.setItem("flappy_best", String(next));
             } catch {}
             return next;
           });
@@ -185,14 +191,23 @@ export default function FlappyBirdGame({ onBack }: { onBack: () => void }) {
     <GameContainer title="Flappy Bird" onBack={onBack}>
       <div className="w-full flex flex-col items-center gap-3">
         <div className="flex items-center justify-center gap-3 text-white">
-          <div className="px-3 py-1 rounded-lg bg-amber-500 shadow">Score: {score}</div>
-          <div className="px-3 py-1 rounded-lg bg-emerald-600 shadow">Best: {bestScore}</div>
+          <div className="px-3 py-1 rounded-lg bg-amber-500 shadow">
+            Score: {score}
+          </div>
+          <div className="px-3 py-1 rounded-lg bg-emerald-600 shadow">
+            Best: {bestScore}
+          </div>
           {gameOver && (
-            <div className="px-3 py-1 rounded-lg bg-red-600 shadow">Game Over</div>
+            <div className="px-3 py-1 rounded-lg bg-red-600 shadow">
+              Game Over
+            </div>
           )}
         </div>
 
-        <div className="grid gap-1 bg-sky-900 p-1.5 rounded-xl shadow-2xl mx-auto" style={gridStyle}>
+        <div
+          className="grid gap-1 bg-sky-900 p-1.5 rounded-xl shadow-2xl mx-auto"
+          style={gridStyle}
+        >
           {board.map((v, i) => {
             const kind = classifyCell(v);
             const cls =
@@ -201,11 +216,15 @@ export default function FlappyBirdGame({ onBack }: { onBack: () => void }) {
                 : kind === "bird"
                 ? "bg-yellow-300"
                 : "bg-sky-800";
-            return <div key={i} className={`aspect-square rounded-sm ${cls}`} />;
+            return (
+              <div key={i} className={`aspect-square rounded-sm ${cls}`} />
+            );
           })}
         </div>
 
-        <div className="text-gray-100 text-sm">Press Space/Up or tap/click to flap</div>
+        <div className="text-gray-100 text-sm">
+          Press Space/Up or tap/click to flap
+        </div>
         <div className="flex items-center gap-2 mt-1">
           <button
             className="px-4 py-2 rounded-xl bg-blue-600 text-white font-medium shadow hover:shadow-lg hover:-translate-y-0.5 transition"
@@ -218,5 +237,3 @@ export default function FlappyBirdGame({ onBack }: { onBack: () => void }) {
     </GameContainer>
   );
 }
-
-

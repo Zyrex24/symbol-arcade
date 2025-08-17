@@ -214,4 +214,4 @@ MIT License - see [LICENSE](LICENSE) for details.
 
 **Built with ❤️ by [Zyrex24](https://github.com/Zyrex24) & [DIEMOS192](https://github.com/DIEMOS192)**
 
-*Experience the future of web gaming - where C++ performance meets React elegance.*
+_Experience the future of web gaming - where C++ performance meets React elegance._

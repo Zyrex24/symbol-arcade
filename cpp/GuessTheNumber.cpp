@@ -16,13 +16,11 @@ extern "C" {
     EMSCRIPTEN_KEEPALIVE
     int make_guess(int guess) {
         attempts++;
-        if (guess < secret_number) return -1; // Too low
-        if (guess > secret_number) return 1;  // Too high
-        return 0; // Correct
+        return guess - secret_number;
     }
 
     EMSCRIPTEN_KEEPALIVE
     int get_attempts() {
         return attempts;
     }
-} 
+}

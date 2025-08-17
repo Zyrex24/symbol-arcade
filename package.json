@@ -7,7 +7,16 @@
     "node": ">=18.0.0"
   },
   "description": "High-performance mini games arcade powered by WebAssembly and C++",
-  "keywords": ["WASM", "WebAssembly", "games", "arcade", "C++", "React", "TypeScript", "mini-games"],
+  "keywords": [
+    "WASM",
+    "WebAssembly",
+    "games",
+    "arcade",
+    "C++",
+    "React",
+    "TypeScript",
+    "mini-games"
+  ],
   "author": "Zyrex24, DIEMOS192",
   "license": "MIT",
   "homepage": "https://symbol-arcade.vercel.app",
