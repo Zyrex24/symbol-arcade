@@ -1,12 +1,12 @@
 {
   "name": "wasm-arcade",
   "private": true,
-  "version": "1.0.0",
+  "version": "1.1.0",
   "type": "module",
   "engines": {
     "node": ">=18.0.0"
   },
-  "description": "High-performance mini games arcade powered by WebAssembly and C++",
+  "description": "WASM ARCADE v1.1 - High-performance mini games arcade powered by WebAssembly and C++",
   "keywords": [
     "WASM",
     "WebAssembly",
@@ -27,18 +27,20 @@
   "scripts": {
     "dev": "vite",
     "dev:watch": "concurrently \"bun run wasm:watch\" \"vite\"",
-    "build": "NODE_ENV=production tsc -b && vite build",
-    "build:clean": "rm -rf dist && NODE_ENV=production tsc -b && vite build",
+    "build": "tsc -b && vite build",
+    "build:clean": "rm -rf dist && tsc -b && vite build",
     "lint": "eslint .",
     "preview": "vite preview",
     "wasm:build": "bash make.sh",
+    "wasm:build:one": "node scripts/build-wasm.mjs",
+    "wasm:build:flappy": "node scripts/build-wasm.mjs FlappyBird",
+    "wasm:build:snake": "node scripts/build-wasm.mjs Snake",
     "wasm:clean": "bash make.sh clean && bash make.sh",
     "wasm:watch": "nodemon --watch cpp --ext cpp --exec \"bash make.sh\""
   },
   "dependencies": {
     "react": "^19.1.0",
-    "react-dom": "^19.1.0",
-    "@rollup/rollup-linux-x64-gnu": "^4.0.0"
+    "react-dom": "^19.1.0"
   },
   "devDependencies": {
     "@eslint/js": "^9.30.1",

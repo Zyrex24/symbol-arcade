@@ -36,7 +36,7 @@ for src in "$CPP_DIR"/*.cpp; do
         cp "$BUILD_DIR/$base.wasm" "$PUBLIC_DIR/"
     elif [ "$base" == "Snake" ]; then
         emcc $src -O3 --no-entry -s WASM=1 -s MODULARIZE=1 -s EXPORT_NAME="Module" \
-          -s EXPORTED_FUNCTIONS="['_snake_start_game','_snake_reset','_snake_set_direction','_snake_tick','_snake_is_game_over','_snake_get_score','_snake_get_width','_snake_get_height','_snake_get_board','_snake_get_cell']" \
+          -s EXPORTED_FUNCTIONS="['_snake_start_game','_snake_reset','_snake_set_direction','_snake_set_difficulty','_snake_tick','_snake_is_game_over','_snake_get_score','_snake_get_width','_snake_get_height','_snake_get_board','_snake_get_cell']" \
           -s EXPORTED_RUNTIME_METHODS="['cwrap','ccall']" \
           -o "$BUILD_DIR/$base.js"
         # Copy to public directory
@@ -60,7 +60,7 @@ for src in "$CPP_DIR"/*.cpp; do
         cp "$BUILD_DIR/$base.wasm" "$PUBLIC_DIR/"
     elif [ "$base" == "FlappyBird" ]; then
         emcc $src -O3 --no-entry -s WASM=1 -s MODULARIZE=1 -s EXPORT_NAME="Module" \
-          -s EXPORTED_FUNCTIONS="['_flappy_start_game','_flappy_flap','_flappy_tick','_flappy_update','_flappy_is_game_over','_flappy_get_score','_flappy_get_width','_flappy_get_height','_flappy_get_cell']" \
+          -s EXPORTED_FUNCTIONS="['_flappy_start_game','_flappy_flap','_flappy_set_difficulty','_flappy_tick','_flappy_update','_flappy_is_game_over','_flappy_get_score','_flappy_get_width','_flappy_get_height','_flappy_get_cell']" \
           -s EXPORTED_RUNTIME_METHODS="['cwrap','ccall']" \
           -o "$BUILD_DIR/$base.js"
         # Copy to public directory

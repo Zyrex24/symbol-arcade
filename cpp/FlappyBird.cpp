@@ -11,18 +11,20 @@ extern "C" {
 // Game parameters
 static const int FB_WIDTH = 28;
 static const int FB_HEIGHT = 20;
-static const int PIPE_GAP = 6;      // vertical gap size (easier)
+// Default to Normal difficulty implicitly
+static int PIPE_GAP = 8;            // vertical gap size (Normal)
 static const int PIPE_SPACING = 12; // columns between pipes
 static const int BIRD_X = 6;        // fixed x position of bird
 
 // Game state
 static bool fb_initialized = false;
 static bool fb_game_over = false;
+static bool fb_started = false; // game hasn't started until first flap
 static int fb_score = 0;
 static int fb_tick = 0;
-
-static int birdY = 10;
-static int birdVy = 0;
+// Physics (floating point for smoother motion)
+static double birdYf = FB_HEIGHT / 2.0;
+static double birdVyf = 0.0;
 
 struct Pipe {
   int x;   // column index of the pipe
@@ -41,19 +43,31 @@ static void fb_reset() {
     fb_initialized = true;
   }
   fb_game_over = false;
+  fb_started = false; // require first click to start
   fb_score = 0;
   fb_tick = 0;
-  birdY = FB_HEIGHT / 2;
-  birdVy = 0;
+  birdYf = FB_HEIGHT / 2.0; // center bird
+  birdVyf = 0.0;            // no velocity at start
   pipes.clear();
 
-  // Seed with a couple of pipes off-screen to the right
-  int startX = FB_WIDTH + 8;
+  // Start with pipes VERY far away to give player lots of time
+  int startX = FB_WIDTH + 20;
   for (int i = 0; i < 3; ++i) {
     Pipe p;
     p.x = startX + i * PIPE_SPACING;
-    p.gapY = irand(2, FB_HEIGHT - PIPE_GAP - 2);
+    p.gapY = irand(4, FB_HEIGHT - PIPE_GAP - 4); // more centered gaps
     pipes.push_back(p);
+  }
+}
+
+// Set difficulty: 1=Easy, 2=Normal, 3=Hard
+EMSCRIPTEN_KEEPALIVE void flappy_set_difficulty(int level) {
+  if (level == 1) {
+    PIPE_GAP = 10; // Easy
+  } else if (level == 3) {
+    PIPE_GAP = 7; // Hard
+  } else {
+    PIPE_GAP = 8; // Normal
   }
 }
 
@@ -67,7 +81,13 @@ EMSCRIPTEN_KEEPALIVE void flappy_start_game() { fb_reset(); }
 
 EMSCRIPTEN_KEEPALIVE void flappy_flap() {
   if (fb_game_over) return;
-  birdVy = -3; // midpoint impulse
+  if (!fb_started) {
+    fb_started = true; // start game on first flap
+    birdVyf = -2.7;    // slightly gentler initial jump
+    return;
+  }
+  // Jump impulse (reduced to avoid overly high jumps)
+  birdVyf = -2.7;
 }
 
 static void add_pipe_right() {
@@ -75,28 +95,33 @@ static void add_pipe_right() {
   for (const auto &p : pipes) if (p.x > maxRight) maxRight = p.x;
   Pipe np;
   np.x = maxRight + PIPE_SPACING;
-  np.gapY = irand(2, FB_HEIGHT - PIPE_GAP - 2);
+  np.gapY = irand(4, FB_HEIGHT - PIPE_GAP - 4);
   pipes.push_back(np);
 }
 
 static void update_physics() {
-  if (fb_game_over) return;
+  if (fb_game_over || !fb_started) return;
 
-  // gravity midpoint: apply on 3 out of every 4 ticks (avg 0.75 per tick)
-  if ((fb_tick % 4) != 0) {
-    birdVy += 1;
-  }
-  if (birdVy > 3) birdVy = 3; // mid clamp
-  birdY += birdVy;
+  // Gravity (small acceleration each tick, reduced for smoother motion)
+  birdVyf += 0.22; // downward acceleration
+  // Cap velocities
+  if (birdVyf > 3.5) birdVyf = 3.5;
+  if (birdVyf < -4.0) birdVyf = -4.0;
+
+  // Integrate position with a small factor for smoother motion on coarse grids
+  birdYf += birdVyf * 0.30;
+
+  int birdY = (int)(birdYf + 0.5);
 
   // bounds check
-  if (birdY < 0 || birdY >= FB_HEIGHT) {
+  // Allow flying above the screen without instant loss; ground is still a loss
+  if (birdY >= FB_HEIGHT) {
     fb_game_over = true;
     return;
   }
 
-  // move pipes left every few ticks to keep pace reasonable
-  bool movedThisTick = (fb_tick % 2) == 0;
+  // Pipe movement (moderate speed)
+  bool movedThisTick = (fb_tick % 3) == 0;
   if (movedThisTick) {
     for (auto &p : pipes) p.x -= 1;
   }
@@ -113,9 +138,12 @@ static void update_physics() {
   for (const auto &p : pipes) {
     if (p.x == BIRD_X) {
       // in pipe column; collide if outside gap
-      if (birdY < p.gapY || birdY >= p.gapY + PIPE_GAP) {
-        fb_game_over = true;
-        return;
+      // Only check collision when the bird is within visible board height
+      if (birdY >= 0 && birdY < FB_HEIGHT) {
+        if (birdY < p.gapY || birdY >= p.gapY + PIPE_GAP) {
+          fb_game_over = true;
+          return;
+        }
       }
     }
     if (p.x == BIRD_X - 1 && movedThisTick) {
@@ -144,7 +172,10 @@ EMSCRIPTEN_KEEPALIVE int flappy_get_cell(int index) {
   if (y < 0 || y >= h) return 0;
 
   // bird
-  if (x == BIRD_X && y == birdY) return 'B';
+  {
+    int birdY = (int)(birdYf + 0.5);
+    if (x == BIRD_X && y == birdY) return 'B';
+  }
 
   // pipes
   for (const auto &p : pipes) {
@@ -158,6 +189,6 @@ EMSCRIPTEN_KEEPALIVE int flappy_get_cell(int index) {
   return ' ';
 }
 
-}
+} 
 
 

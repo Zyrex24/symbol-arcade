@@ -26,7 +26,7 @@ export default function App() {
             WASM Arcade
           </span>
           <span className="ml-1 px-2 py-0.5 rounded bg-white/20 text-white text-[10px] sm:text-xs font-mono tracking-widest">
-            v1.0
+            v1.1
           </span>
         </div>
         <div className="flex items-center gap-3">

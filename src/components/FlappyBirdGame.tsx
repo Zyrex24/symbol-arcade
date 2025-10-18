@@ -1,6 +1,8 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import GameContainer from "./GameContainer";
+import "../styles/Games.css";
 import { useWasmLoader } from "../hooks/useWasmLoader";
+import type { WasmModule } from "../types/wasm.js";
 
 export default function FlappyBirdGame({ onBack }: { onBack: () => void }) {
   const { wasmRef, isLoaded, error } = useWasmLoader("FlappyBird");
@@ -14,7 +16,7 @@ export default function FlappyBirdGame({ onBack }: { onBack: () => void }) {
 
   const readBoard = useCallback(() => {
     try {
-      const mod = wasmRef.current as any;
+      const mod: WasmModule | null = wasmRef.current;
       if (!mod) return;
       const w = mod._flappy_get_width?.() ?? 28;
       const h = mod._flappy_get_height?.() ?? 20;
@@ -37,7 +39,7 @@ export default function FlappyBirdGame({ onBack }: { onBack: () => void }) {
 
   const startGame = useCallback(() => {
     try {
-      const mod = wasmRef.current as any;
+      const mod: WasmModule | null = wasmRef.current;
       if (!mod?._flappy_start_game) return;
       mod._flappy_start_game();
       setGameOver(false);
@@ -51,50 +53,51 @@ export default function FlappyBirdGame({ onBack }: { onBack: () => void }) {
 
   useEffect(() => {
     if (!isLoaded) return;
-    // initialize best score from storage
     try {
       const saved = localStorage.getItem("flappy_best");
       if (saved) setBestScore(parseInt(saved, 10) || 0);
-    } catch {}
+    } catch (err) {
+      console.error("Failed to load best score:", err);
+    }
     const t = setTimeout(() => startGame(), 100);
     return () => clearTimeout(t);
   }, [isLoaded, startGame]);
 
   useEffect(() => {
+    if (!isLoaded) return;
+
+    const boardElement = document.querySelector(".flappy-board");
+    if (!boardElement) return;
+
     const onPointer = (e: Event) => {
       e.preventDefault();
-      const mod = wasmRef.current as any;
-      if (mod?._flappy_flap) mod._flappy_flap();
-    };
-    const onKey = (e: KeyboardEvent) => {
-      if (
-        e.key === " " ||
-        e.key === "ArrowUp" ||
-        e.key === "w" ||
-        e.key === "W"
-      ) {
-        e.preventDefault();
-        const mod = wasmRef.current as any;
-        if (mod?._flappy_flap) mod._flappy_flap();
+      const mod: WasmModule | null = wasmRef.current;
+      if (!mod) return;
+      if (gameOver) {
+        // Restart on click when game over
+        startGame();
+        return;
       }
+      if (mod._flappy_flap) mod._flappy_flap();
     };
-    window.addEventListener("mousedown", onPointer);
-    window.addEventListener("touchstart", onPointer, { passive: false });
-    window.addEventListener("keydown", onKey);
+
+    boardElement.addEventListener("mousedown", onPointer);
+    boardElement.addEventListener("touchstart", onPointer, { passive: false });
+
     return () => {
-      window.removeEventListener("mousedown", onPointer);
-      window.removeEventListener("touchstart", onPointer);
-      window.removeEventListener("keydown", onKey);
+      boardElement.removeEventListener("mousedown", onPointer);
+      boardElement.removeEventListener("touchstart", onPointer);
     };
-  }, [wasmRef]);
+  }, [wasmRef, isLoaded, gameOver, startGame]);
 
   useEffect(() => {
     if (!isLoaded) return;
     let last = 0;
     const loop = (ts: number) => {
       try {
-        const mod = wasmRef.current as any;
-        if (ts - last > 50) {
+        const mod: WasmModule | null = wasmRef.current;
+        // Update at slower rate - every 32ms for more controlled gameplay
+        if (ts - last > 32) {
           if (mod?._flappy_update) mod._flappy_update();
           else if (mod?._flappy_tick) mod._flappy_tick();
           last = ts;
@@ -111,7 +114,9 @@ export default function FlappyBirdGame({ onBack }: { onBack: () => void }) {
             try {
               if (next > prev)
                 localStorage.setItem("flappy_best", String(next));
-            } catch {}
+            } catch (err) {
+              console.error("Game update error:", err);
+            }
             return next;
           });
         }
@@ -126,14 +131,6 @@ export default function FlappyBirdGame({ onBack }: { onBack: () => void }) {
       animationRef.current = null;
     };
   }, [isLoaded, readBoard, wasmRef]);
-
-  const gridStyle = useMemo(
-    () => ({
-      gridTemplateColumns: `repeat(${width}, 1fr)`,
-      width: "min(92vw, 560px)",
-    }),
-    [width]
-  );
 
   const classifyCell = (raw: string | number): string => {
     let char = "";
@@ -189,49 +186,87 @@ export default function FlappyBirdGame({ onBack }: { onBack: () => void }) {
 
   return (
     <GameContainer title="Flappy Bird" onBack={onBack}>
-      <div className="w-full flex flex-col items-center gap-3">
-        <div className="flex items-center justify-center gap-3 text-white">
-          <div className="px-3 py-1 rounded-lg bg-amber-500 shadow">
-            Score: {score}
+      <div className="w-full max-w-3xl mx-auto flex flex-col items-center gap-4 px-4">
+        {/* Removed difficulty selector: default to Normal */}
+
+        {/* Score Display */}
+        <div className="flex items-center justify-center gap-4 w-full">
+          <div className="flex-1 max-w-xs bg-gradient-to-br from-amber-500 to-orange-600 rounded-xl shadow-lg p-3 text-center">
+            <div className="text-white/80 text-xs font-semibold uppercase tracking-wider">
+              Score
+            </div>
+            <div className="text-white text-3xl font-bold tabular-nums">
+              {score}
+            </div>
           </div>
-          <div className="px-3 py-1 rounded-lg bg-emerald-600 shadow">
-            Best: {bestScore}
+          <div className="flex-1 max-w-xs bg-gradient-to-br from-emerald-500 to-teal-600 rounded-xl shadow-lg p-3 text-center">
+            <div className="text-white/80 text-xs font-semibold uppercase tracking-wider">
+              Best
+            </div>
+            <div className="text-white text-3xl font-bold tabular-nums">
+              {bestScore}
+            </div>
           </div>
-          {gameOver && (
-            <div className="px-3 py-1 rounded-lg bg-red-600 shadow">
-              Game Over
+        </div>
+
+        {/* Game Board with Overlays */}
+        <div className="relative w-full">
+          {/* Start Game Overlay - Simple text indicator */}
+          {!gameOver && score === 0 && (
+            <div className="absolute top-6 left-0 right-0 z-10 flex justify-center pointer-events-none">
+              <div className="bg-yellow-400 text-gray-900 px-6 py-3 rounded-full shadow-lg font-bold text-lg animate-pulse">
+                👆 Click to Start
+              </div>
             </div>
           )}
-        </div>
 
-        <div
-          className="grid gap-1 bg-sky-900 p-1.5 rounded-xl shadow-2xl mx-auto"
-          style={gridStyle}
-        >
-          {board.map((v, i) => {
-            const kind = classifyCell(v);
-            const cls =
-              kind === "pipe"
-                ? "bg-emerald-700"
-                : kind === "bird"
-                ? "bg-yellow-300"
-                : "bg-sky-800";
-            return (
-              <div key={i} className={`aspect-square rounded-sm ${cls}`} />
-            );
-          })}
-        </div>
+          {/* Game Over Overlay - Simple restart indicator */}
+          {gameOver && (
+            <div className="absolute inset-0 z-10 rounded-2xl flex flex-col items-center justify-center pointer-events-none">
+              <div className="bg-red-600 text-white px-8 py-4 rounded-2xl shadow-2xl mb-3">
+                <div className="text-4xl font-bold">Game Over!</div>
+                <div className="text-xl mt-2">Score: {score}</div>
+              </div>
+              <div className="bg-green-400 text-gray-900 px-6 py-3 rounded-full shadow-lg font-bold text-lg animate-pulse">
+                👆 Click anywhere to Restart
+              </div>
+            </div>
+          )}
 
-        <div className="text-gray-100 text-sm">
-          Press Space/Up or tap/click to flap
-        </div>
-        <div className="flex items-center gap-2 mt-1">
-          <button
-            className="px-4 py-2 rounded-xl bg-blue-600 text-white font-medium shadow hover:shadow-lg hover:-translate-y-0.5 transition"
-            onClick={startGame}
+          {/* The Actual Game Board */}
+          <div
+            className={`flappy-board ${
+              width === 28 ? "flappy-board-cols-28" : ""
+            } shadow-2xl rounded-2xl overflow-hidden border-4 border-sky-900/50`}
           >
-            {gameOver ? "Play Again" : "Restart"}
-          </button>
+            {board.map((v, i) => {
+              const kind = classifyCell(v);
+              let cellClass = "aspect-square transition-colors duration-75";
+
+              if (kind === "pipe") {
+                cellClass +=
+                  " bg-gradient-to-b from-emerald-600 to-emerald-800";
+              } else if (kind === "bird") {
+                cellClass +=
+                  " bg-gradient-to-br from-yellow-300 via-yellow-400 to-orange-500 rounded-full shadow-lg";
+              } else {
+                // Sky gradient
+                const row = Math.floor(i / width);
+                const opacity = 50 + row * 2;
+                cellClass += ` bg-sky-${
+                  opacity >= 800
+                    ? "800"
+                    : opacity >= 700
+                    ? "700"
+                    : opacity >= 600
+                    ? "600"
+                    : "500"
+                }`;
+              }
+
+              return <div key={i} className={cellClass} />;
+            })}
+          </div>
         </div>
       </div>
     </GameContainer>

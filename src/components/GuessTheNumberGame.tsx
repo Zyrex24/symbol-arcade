@@ -18,69 +18,23 @@ interface NumberPadProps {
 
 function NumberPad({ onInput, onBackspace, onClear }: NumberPadProps) {
   return (
-    <div
-      className="number-pad"
-      style={{
-        display: "grid",
-        gridTemplateColumns: "repeat(3, 2.5rem)",
-        gap: "0.5rem",
-        justifyContent: "center",
-        margin: "1rem 0",
-      }}
-    >
+    <div className="number-pad">
       {[1, 2, 3, 4, 5, 6, 7, 8, 9].map((n) => (
         <button
           key={n}
-          className="number-btn"
-          style={{
-            fontSize: "1.25rem",
-            padding: "0.75rem",
-            borderRadius: 8,
-            background: "#e0e7ef",
-            fontWeight: 700,
-          }}
+          className="number-btn primary"
           onClick={() => onInput(n.toString())}
         >
           {n}
         </button>
       ))}
-      <button
-        className="number-btn"
-        style={{
-          fontSize: "1.25rem",
-          padding: "0.75rem",
-          borderRadius: 8,
-          background: "#f3f4f6",
-          fontWeight: 700,
-        }}
-        onClick={onClear}
-      >
+      <button className="number-btn secondary" onClick={onClear}>
         C
       </button>
-      <button
-        className="number-btn"
-        style={{
-          fontSize: "1.25rem",
-          padding: "0.75rem",
-          borderRadius: 8,
-          background: "#e0e7ef",
-          fontWeight: 700,
-        }}
-        onClick={() => onInput("0")}
-      >
+      <button className="number-btn primary" onClick={() => onInput("0")}>
         0
       </button>
-      <button
-        className="number-btn"
-        style={{
-          fontSize: "1.25rem",
-          padding: "0.75rem",
-          borderRadius: 8,
-          background: "#f3f4f6",
-          fontWeight: 700,
-        }}
-        onClick={onBackspace}
-      >
+      <button className="number-btn secondary" onClick={onBackspace}>
         ⌫
       </button>
     </div>
@@ -88,7 +42,11 @@ function NumberPad({ onInput, onBackspace, onClear }: NumberPadProps) {
 }
 
 // Feedback message logic for guess result
-function getFeedbackMessage(result: number, guess: number, attempts?: number): string {
+function getFeedbackMessage(
+  result: number,
+  guess: number,
+  attempts?: number
+): string {
   if (result === 0) {
     return attempts
       ? `🎉 Correct! You got it in ${attempts} attempts!`
@@ -182,21 +140,14 @@ export default function GuessTheNumberGame({ onBack }: { onBack: () => void }) {
         {!gameStarted ? (
           <div>
             <p className="guess-description">Select difficulty:</p>
-            <div style={{ display: "flex", gap: 8, marginBottom: 12 }}>
+            <div className="difficulty-selector">
               {DIFFICULTY_LEVELS.map((level) => (
                 <button
                   key={level.label}
                   onClick={() => handleDifficultyChange(level)}
-                  style={{
-                    padding: "0.5rem 1rem",
-                    borderRadius: 8,
-                    fontWeight: 600,
-                    background:
-                      difficulty === level.label ? "#2563eb" : "#e0e7ef",
-                    color: difficulty === level.label ? "#fff" : "#222",
-                    border: "none",
-                    cursor: "pointer",
-                  }}
+                  className={`difficulty-btn ${
+                    difficulty === level.label ? "active" : "inactive"
+                  }`}
                 >
                   {level.label}
                 </button>
@@ -217,19 +168,10 @@ export default function GuessTheNumberGame({ onBack }: { onBack: () => void }) {
                 value={guess}
                 onChange={(e) => setGuess(e.target.value)}
                 placeholder={`Enter your guess (1-${max})`}
-                className="guess-input"
+                className="guess-input guess-input-enhanced"
                 onKeyPress={(e) => e.key === "Enter" && handleGuess()}
                 min="1"
                 max={max}
-                style={{
-                  background: "#f9fafb",
-                  color: "#222",
-                  fontWeight: 600,
-                  fontSize: "1.5rem",
-                  textAlign: "center",
-                  borderRadius: 8,
-                  width: 120,
-                }}
               />
               <button onClick={handleGuess} className="guess-submit">
                 Guess
@@ -259,19 +201,6 @@ export default function GuessTheNumberGame({ onBack }: { onBack: () => void }) {
                 ? "veryclose"
                 : "default"
             }`}
-            style={{
-              fontWeight: 600,
-              fontSize: "1.1rem",
-              color: feedback.includes("Way off")
-                ? "#b91c1c"
-                : feedback.includes("Far")
-                ? "#f59e42"
-                : feedback.includes("Close")
-                ? "#2563eb"
-                : feedback.includes("Very close")
-                ? "#059669"
-                : undefined,
-            }}
           >
             {feedback || `Click 'Start Game' to begin!`}
           </div>

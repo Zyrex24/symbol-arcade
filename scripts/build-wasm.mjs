@@ -13,42 +13,49 @@ function ensureDirs() {
 
 function resolveEmcc() {
   // Prefer PATH
-  const isWin = process.platform === 'win32';
+  const isWin = process.platform === "win32";
   // Common local emsdk path at repo root
-  const repoRoot = resolve('.');
-  const localEmsdk = resolve(repoRoot, 'emsdk');
+  const repoRoot = resolve(".");
+  const localEmsdk = resolve(repoRoot, "emsdk");
   const envEmsdk = process.env.EMSDK;
   const candidates = [];
   if (envEmsdk) {
-    candidates.push(join(envEmsdk, 'upstream', 'emscripten', isWin ? 'emcc.bat' : 'emcc'));
+    candidates.push(
+      join(envEmsdk, "upstream", "emscripten", isWin ? "emcc.bat" : "emcc")
+    );
   }
   if (existsSync(localEmsdk)) {
-    candidates.push(join(localEmsdk, 'upstream', 'emscripten', isWin ? 'emcc.bat' : 'emcc'));
+    candidates.push(
+      join(localEmsdk, "upstream", "emscripten", isWin ? "emcc.bat" : "emcc")
+    );
   }
   // If none found, fall back to relying on PATH
-  candidates.push('emcc');
+  candidates.push("emcc");
   for (const p of candidates) {
-    if (p === 'emcc') return p;
+    if (p === "emcc") return p;
     if (existsSync(p)) return p;
   }
-  return 'emcc';
+  return "emcc";
 }
 
 function runEmcc(args) {
   const emccPath = resolveEmcc();
-  const isWin = process.platform === 'win32';
+  const isWin = process.platform === "win32";
   return new Promise((resolvePromise, reject) => {
     if (isWin) {
       // Use shell to run .bat reliably on Windows
-      const cmd = [emccPath, ...args.map((a) => (a.includes(' ') ? `"${a}"` : a))].join(' ');
-      const child = spawn(cmd, { stdio: 'inherit', shell: true });
-      child.on('close', (code) => {
+      const cmd = [
+        emccPath,
+        ...args.map((a) => (a.includes(" ") ? `"${a}"` : a)),
+      ].join(" ");
+      const child = spawn(cmd, { stdio: "inherit", shell: true });
+      child.on("close", (code) => {
         if (code === 0) resolvePromise();
         else reject(new Error(`emcc failed with code ${code}`));
       });
     } else {
-      const child = spawn(emccPath, args, { stdio: 'inherit' });
-      child.on('close', (code) => {
+      const child = spawn(emccPath, args, { stdio: "inherit" });
+      child.on("close", (code) => {
         if (code === 0) resolvePromise();
         else reject(new Error(`emcc failed with code ${code}`));
       });
@@ -63,11 +70,7 @@ async function buildOne(src) {
   let exportedFunctions = [];
 
   if (base === "GuessTheNumber") {
-    exportedFunctions = [
-      "_start_game",
-      "_make_guess",
-      "_get_attempts",
-    ];
+    exportedFunctions = ["_start_game", "_make_guess", "_get_attempts"];
   } else if (base === "TicTacToe") {
     exportedFunctions = [
       "_malloc",
@@ -109,6 +112,7 @@ async function buildOne(src) {
     exportedFunctions = [
       "_flappy_start_game",
       "_flappy_flap",
+      "_flappy_set_difficulty",
       "_flappy_tick",
       "_flappy_update",
       "_flappy_is_game_over",
@@ -143,24 +147,37 @@ async function buildOne(src) {
   await runEmcc(args);
 
   copyFileSync(out, resolve(PUBLIC_DIR, `${base}.js`));
-  copyFileSync(resolve(BUILD_DIR, `${base}.wasm`), resolve(PUBLIC_DIR, `${base}.wasm`));
+  copyFileSync(
+    resolve(BUILD_DIR, `${base}.wasm`),
+    resolve(PUBLIC_DIR, `${base}.wasm`)
+  );
 }
 
 async function main() {
   ensureDirs();
-  const sources = readdirSync(CPP_DIR)
+  // Optional: allow specifying a single game name to build: `node scripts/build-wasm.mjs FlappyBird`
+  const only = process.argv[2];
+  let sources = readdirSync(CPP_DIR)
     .filter((f) => f.endsWith(".cpp"))
     .map((f) => resolve(CPP_DIR, f));
+  if (only) {
+    const candidate = resolve(CPP_DIR, `${only}.cpp`);
+    if (existsSync(candidate)) {
+      sources = [candidate];
+    } else {
+      console.warn(`Requested source ${candidate} not found. Building all.`);
+    }
+  }
 
   for (const src of sources) {
     await buildOne(src);
   }
-  console.log(`Build complete. WASM modules are in ${BUILD_DIR}/ and copied to ${PUBLIC_DIR}/`);
+  console.log(
+    `Build complete. WASM modules are in ${BUILD_DIR}/ and copied to ${PUBLIC_DIR}/`
+  );
 }
 
 main().catch((err) => {
   console.error(err?.message || err);
   process.exit(1);
 });
-
-

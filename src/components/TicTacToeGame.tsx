@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from "react";
 import { useWasmLoader } from "../hooks/useWasmLoader";
 import GameContainer from "./GameContainer";
+import type { WasmModule } from "../types/wasm.js";
 
 const EMPTY_CELL = "";
 
@@ -11,75 +12,34 @@ export default function TicTacToeGame({ onBack }: { onBack: () => void }) {
   const [gameOver, setGameOver] = useState<boolean>(false);
   const [winner, setWinner] = useState<string>("");
 
-  useEffect(() => {
-    if (isLoaded) {
-      const t = setTimeout(() => {
-        startNewGame();
-      }, 100);
-      return () => clearTimeout(t);
-    }
-  }, [isLoaded]);
-
   const updateBoard = useCallback(() => {
-    const mod = wasmRef.current as any;
-    if (!mod) {
-      console.log("[TicTacToe] No WASM module available");
-      return;
-    }
+    const mod: WasmModule | null = wasmRef.current;
+    if (!mod) return;
 
     try {
       const boardData: string[] = [];
 
-      // Debug: Check which functions are available
-      console.log("[TicTacToe] Available functions:", {
-        _ttt_get_cell: typeof mod._ttt_get_cell,
-        _ttt_get_board: typeof mod._ttt_get_board,
-        HEAPU8: typeof mod.HEAPU8,
-      });
-
-      if (typeof mod._ttt_get_cell === "function") {
-        console.log("[TicTacToe] Using _ttt_get_cell method");
+      if (mod._ttt_get_cell) {
         for (let i = 0; i < 9; i++) {
-          const code = mod._ttt_get_cell(i) as number;
-          console.log(
-            `[TicTacToe] Cell ${i}: code=${code}, char='${
-              code > 0 ? String.fromCharCode(code) : "EMPTY"
-            }'`
-          );
-          if (code === 32) boardData.push(EMPTY_CELL); // Space character
+          const code = mod._ttt_get_cell(i);
+          if (code === 32) boardData.push(EMPTY_CELL);
           else if (code > 0) boardData.push(String.fromCharCode(code));
           else boardData.push(EMPTY_CELL);
         }
-      } else if (typeof mod._ttt_get_board === "function" && mod.HEAPU8) {
-        console.log("[TicTacToe] Using _ttt_get_board method");
+      } else if (mod._ttt_get_board && mod.HEAPU8) {
         const ptr = mod._ttt_get_board();
-        if (ptr === 0) {
-          console.error("WASM failed to return board pointer.");
-          return;
-        }
-        const heap = mod.HEAPU8 as Uint8Array;
+        if (ptr === 0) return;
+        const heap = mod.HEAPU8;
         for (let i = 0; i < 9; i++) {
           const cell = heap[ptr + i];
-          console.log(
-            `[TicTacToe] Cell ${i}: byte=${cell}, char='${
-              cell === 32 ? "SPACE" : String.fromCharCode(cell)
-            }'`
-          );
           boardData.push(cell === 32 ? EMPTY_CELL : String.fromCharCode(cell));
         }
-      } else {
-        console.error(
-          "[WASM] Neither _ttt_get_cell nor _ttt_get_board+HEAPU8 is available."
-        );
-        return;
       }
 
-      console.log("[TicTacToe] Final board data:", boardData);
       setBoard(boardData);
 
-      if (typeof mod._ttt_get_current_player === "function") {
+      if (mod._ttt_get_current_player) {
         const playerCode = mod._ttt_get_current_player();
-        console.log("[TicTacToe] Current player code:", playerCode);
         if (playerCode) setCurrentPlayer(String.fromCharCode(playerCode));
       }
     } catch (err) {
@@ -88,22 +48,21 @@ export default function TicTacToeGame({ onBack }: { onBack: () => void }) {
   }, [wasmRef]);
 
   const startNewGame = useCallback(() => {
-    console.log("[TicTacToe] Starting new game...");
     if (wasmRef.current?._ttt_start_game) {
-      console.log("[TicTacToe] Calling _ttt_start_game");
       wasmRef.current._ttt_start_game();
-      console.log("[TicTacToe] _ttt_start_game called, updating board...");
       updateBoard();
       setCurrentPlayer("X");
       setGameOver(false);
       setWinner("");
-    } else {
-      console.error("[WASM] _ttt_start_game is not available.", {
-        wasmRef: !!wasmRef.current,
-        startGameFunc: wasmRef.current?._ttt_start_game,
-      });
     }
   }, [wasmRef, updateBoard]);
+
+  useEffect(() => {
+    if (isLoaded) {
+      const t = setTimeout(() => startNewGame(), 100);
+      return () => clearTimeout(t);
+    }
+  }, [isLoaded, startNewGame]);
 
   const handleCellClick = useCallback(
     (index: number) => {

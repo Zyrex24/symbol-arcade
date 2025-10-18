@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 
-interface WasmModule {
+export interface WasmModule {
   _malloc?: (size: number) => number;
   _free?: (ptr: number) => void;
   HEAPU8?: Uint8Array;
@@ -44,7 +44,7 @@ interface WasmModule {
   _rps_get_win_rate?: () => number;
 
   // Pacman functions
-  _pacman_start_game?: () => void;
+  _pacman_start_game?: (level?: number) => void;
   _pacman_set_direction?: (direction: number) => void;
   _pacman_tick?: () => number;
   _pacman_update?: () => number;
@@ -57,6 +57,7 @@ interface WasmModule {
   // Flappy Bird
   _flappy_start_game?: () => void;
   _flappy_flap?: () => void;
+  _flappy_set_difficulty?: (level: number) => void;
   _flappy_tick?: () => number;
   _flappy_update?: () => number;
   _flappy_get_width?: () => number;
@@ -72,15 +73,19 @@ export function useWasmLoader(moduleName: string) {
   const [error, setError] = useState<string | null>(null);
   // Guard to avoid duplicate loads/instantiation in React StrictMode
   const loadedRef = useRef(false);
+  type WasmCache = Record<string, WasmModule>;
 
   useEffect(() => {
     const loadWasm = async () => {
       try {
         // Simple cache of instantiated modules keyed by moduleName
-        const g = window as any;
+        const g = window as unknown as {
+          __wasmModules?: WasmCache;
+        } & typeof window;
         g.__wasmModules = g.__wasmModules || {};
-        if (g.__wasmModules[moduleName]) {
-          wasmRef.current = g.__wasmModules[moduleName] as WasmModule;
+        const cache: WasmCache = g.__wasmModules;
+        if (cache[moduleName]) {
+          wasmRef.current = cache[moduleName];
           setIsLoaded(true);
           return;
         }
@@ -109,11 +114,13 @@ export function useWasmLoader(moduleName: string) {
             // Wait a bit for the Module factory to be available
             await new Promise((resolve) => setTimeout(resolve, 100));
 
-            const moduleLoader = (window as any).Module;
+            const moduleLoader = (
+              window as unknown as { Module?: () => Promise<WasmModule> }
+            ).Module;
             if (moduleLoader) {
               // If someone else already instantiated while we were loading, reuse it
-              if (g.__wasmModules[moduleName]) {
-                wasmRef.current = g.__wasmModules[moduleName] as WasmModule;
+              if (cache[moduleName]) {
+                wasmRef.current = cache[moduleName];
                 setIsLoaded(true);
                 return;
               }
@@ -125,7 +132,7 @@ export function useWasmLoader(moduleName: string) {
               );
               wasmRef.current = mod;
               // Cache for reuse across mounts/renders
-              g.__wasmModules[moduleName] = mod;
+              cache[moduleName] = mod;
               if (mod) {
                 console.log(
                   `[WASM LOADER] Exported keys for ${moduleName}:`,

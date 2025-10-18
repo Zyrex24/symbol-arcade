@@ -1,6 +1,8 @@
-import { useEffect, useMemo, useRef, useState, useCallback } from "react";
+import { useEffect, useRef, useState, useCallback } from "react";
 import GameContainer from "./GameContainer";
 import { useWasmLoader } from "../hooks/useWasmLoader";
+import type { WasmModule } from "../types/wasm";
+import "../styles/Games.css";
 
 // Directions expected by WASM: 0=Up, 1=Right, 2=Down, 3=Left
 const DIRS: Record<string, number> = {
@@ -21,11 +23,11 @@ const DIRS: Record<string, number> = {
 export default function SnakeGame({ onBack }: { onBack: () => void }) {
   const { wasmRef, isLoaded, error } = useWasmLoader("Snake");
   const [gameOver, setGameOver] = useState(false);
+  const [started, setStarted] = useState(false);
   const [score, setScore] = useState(0);
   const [width, setWidth] = useState(20);
-  const [height, setHeight] = useState(20);
+  // height is currently fixed by WASM and not used in layout classes
   const [board, setBoard] = useState<(string | number)[]>([]);
-  const [debug, setDebug] = useState(false);
   const [gameError, setGameError] = useState<string | null>(null);
   const animationRef = useRef<number | null>(null);
 
@@ -38,7 +40,7 @@ export default function SnakeGame({ onBack }: { onBack: () => void }) {
       const w = mod._snake_get_width?.() ?? 20;
       const h = mod._snake_get_height?.() ?? 20;
       setWidth(w);
-      setHeight(h);
+      // height (h) is provided by WASM but not needed for grid styling
 
       const cells: (string | number)[] = [];
       if (mod._snake_get_cell) {
@@ -64,11 +66,11 @@ export default function SnakeGame({ onBack }: { onBack: () => void }) {
 
   const startGame = useCallback(() => {
     try {
-      const mod = wasmRef.current;
+      const mod: WasmModule | null = wasmRef.current;
       if (!mod?._snake_start_game) return;
-
       mod._snake_start_game();
       setGameOver(false);
+      setStarted(true);
       setScore(0);
       setGameError(null);
       readBoard();
@@ -78,21 +80,22 @@ export default function SnakeGame({ onBack }: { onBack: () => void }) {
     }
   }, [readBoard, wasmRef]);
 
-  // load and start
-  useEffect(() => {
-    if (!isLoaded) return;
-    const t = setTimeout(() => startGame(), 100);
-    return () => clearTimeout(t);
-  }, [isLoaded, startGame]);
+  // Do not auto-start. Wait for user input (click or key press).
 
   // Simple input - just pass to C++, let C++ handle everything
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       const dir = DIRS[e.key];
+      const mod = wasmRef.current;
+      if (!mod) return;
+
+      // Start or restart on any movement key
       if (dir !== undefined) {
         e.preventDefault();
-        const mod = wasmRef.current;
-        if (mod?._snake_set_direction) {
+        if (!started || gameOver) {
+          startGame();
+        }
+        if (mod._snake_set_direction) {
           mod._snake_set_direction(dir);
         }
       }
@@ -100,7 +103,7 @@ export default function SnakeGame({ onBack }: { onBack: () => void }) {
 
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [wasmRef]);
+  }, [wasmRef, started, gameOver, startGame]);
 
   // Pure display loop - C++ handles its own timing, we just display
   useEffect(() => {
@@ -109,10 +112,10 @@ export default function SnakeGame({ onBack }: { onBack: () => void }) {
     const renderLoop = () => {
       try {
         const mod = wasmRef.current;
-        if (mod?._snake_update) {
-          mod._snake_update(); // Let C++ update itself
+        if (started && !gameOver && mod?._snake_update) {
+          mod._snake_update(); // Only update when game is running
         }
-        readBoard(); // Just read and display
+        readBoard();
         animationRef.current = requestAnimationFrame(renderLoop);
       } catch (err) {
         console.error("Error in render loop:", err);
@@ -128,15 +131,7 @@ export default function SnakeGame({ onBack }: { onBack: () => void }) {
         animationRef.current = null;
       }
     };
-  }, [isLoaded, readBoard, wasmRef]);
-
-  const gridStyle = useMemo(
-    () => ({
-      gridTemplateColumns: `repeat(${width}, 1fr)`,
-      width: "min(92vw, 560px)",
-    }),
-    [width]
-  );
+  }, [isLoaded, readBoard, wasmRef, started, gameOver]);
 
   const classifyCell = (raw: string | number): string => {
     // Convert to string if it's a number (character code)
@@ -153,8 +148,6 @@ export default function SnakeGame({ onBack }: { onBack: () => void }) {
     if (char === " " || char === "" || char.trim() === "") return "empty";
 
     // Fallback for any unexpected values
-    if (debug)
-      console.warn(`[SNAKE] Unknown cell value: raw=${raw}, char='${char}'`);
     return "empty";
   };
 
@@ -218,9 +211,36 @@ export default function SnakeGame({ onBack }: { onBack: () => void }) {
 
         {/* Board */}
         <div
-          className="grid gap-1 bg-gray-900 p-1.5 rounded-xl shadow-2xl mx-auto"
-          style={gridStyle}
+          className={`relative snake-board ${
+            width === 20 ? "snake-board-cols-20" : ""
+          }`}
+          onMouseDown={() => {
+            if (!started || gameOver) startGame();
+          }}
+          onTouchStart={(e) => {
+            e.preventDefault();
+            if (!started || gameOver) startGame();
+          }}
         >
+          {/* Start overlay */}
+          {!started && !gameOver && (
+            <div className="absolute inset-0 z-10 flex items-center justify-center pointer-events-none">
+              <div className="bg-emerald-400 text-gray-900 px-6 py-3 rounded-full shadow-lg font-bold text-lg animate-pulse">
+                Click or press any key to start
+              </div>
+            </div>
+          )}
+          {/* Game over overlay */}
+          {gameOver && (
+            <div className="absolute inset-0 z-10 flex flex-col items-center justify-center pointer-events-none">
+              <div className="bg-red-600 text-white px-6 py-3 rounded-2xl shadow-lg font-bold text-xl mb-2">
+                Game Over — Score: {score}
+              </div>
+              <div className="bg-emerald-400 text-gray-900 px-5 py-2 rounded-full shadow font-bold text-base animate-pulse">
+                Click or press any key to restart
+              </div>
+            </div>
+          )}
           {board.map((v, i) => {
             const kind = classifyCell(v);
             return (
@@ -234,57 +254,11 @@ export default function SnakeGame({ onBack }: { onBack: () => void }) {
                     ? "bg-amber-500"
                     : "bg-gray-700")
                 }
-                title={debug ? String(v) : undefined}
               />
             );
           })}
         </div>
-
-        {/* Actions */}
-        <div className="flex items-center gap-2 mt-2">
-          <button
-            className="px-4 py-2 rounded-xl bg-blue-600 text-white font-medium shadow hover:shadow-lg hover:-translate-y-0.5 transition"
-            onClick={startGame}
-          >
-            {gameOver ? "Play Again" : "Restart"}
-          </button>
-          <button
-            className="px-3 py-2 rounded-lg bg-gray-700 text-white text-sm"
-            onClick={() => {
-              const mod = wasmRef.current;
-              if (mod && typeof mod._snake_tick === "function") {
-                const stillAlive = mod._snake_tick();
-                if (!stillAlive) setGameOver(true);
-                readBoard();
-              }
-            }}
-            title="Advance one tick"
-          >
-            Tick
-          </button>
-          <button
-            className={`px-3 py-2 rounded-lg text-sm ${
-              debug ? "bg-purple-600 text-white" : "bg-gray-300 text-gray-800"
-            }`}
-            onClick={() => setDebug((d) => !d)}
-            title="Toggle debug"
-          >
-            Debug: {debug ? "On" : "Off"}
-          </button>
-        </div>
-
-        {debug && (
-          <div className="text-xs text-gray-300 mt-1">
-            w={width} h={height} nonZero=
-            {
-              board.filter((x) =>
-                typeof x === "number" ? x !== 0 : String(x).trim() !== ""
-              ).length
-            }
-          </div>
-        )}
-
-        <div className="text-gray-600 text-sm">
+        <div className="text-white/80 text-sm">
           Use Arrow Keys or WASD to move
         </div>
       </div>

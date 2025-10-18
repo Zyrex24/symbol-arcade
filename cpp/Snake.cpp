@@ -17,7 +17,9 @@ extern "C" {
 
   // Direction: 0=Up,1=Right,2=Down,3=Left
   static int dir;
-  static int next_dir; // Buffer next direction to prevent invalid moves
+  // Small queue to buffer rapid direction inputs
+  static int dir_queue[8];
+  static int dq_len;
 
   // Game state
   static int game_over;
@@ -27,7 +29,7 @@ extern "C" {
 
   // Timing - C++ handles its own pace
   static auto last_move_time = std::chrono::steady_clock::now();
-  static const int MOVE_INTERVAL_MS = 150; // Game speed
+  static int MOVE_INTERVAL_MS = 150; // Game speed - now configurable
 
   static void clear_board() {
     memset(board, ' ', MAX_CELLS);
@@ -45,7 +47,7 @@ extern "C" {
       board[snake_positions[i]] = 'S';
     }
     dir = 1; // Right
-    next_dir = 1; // Initialize next direction
+    dq_len = 0; // clear queued inputs
   }
 
   static unsigned int rng_state = 1234567u;
@@ -85,6 +87,18 @@ extern "C" {
     last_move_time = std::chrono::steady_clock::now();
   }
 
+  // Set difficulty: 1=Easy, 2=Normal, 3=Hard
+  EMSCRIPTEN_KEEPALIVE
+  void snake_set_difficulty(int level) {
+    if (level == 1) {
+      MOVE_INTERVAL_MS = 200; // Easy - slower
+    } else if (level == 3) {
+      MOVE_INTERVAL_MS = 100; // Hard - faster
+    } else {
+      MOVE_INTERVAL_MS = 150; // Normal
+    }
+  }
+
   EMSCRIPTEN_KEEPALIVE
   void snake_reset() {
     snake_start_game();
@@ -93,10 +107,19 @@ extern "C" {
   EMSCRIPTEN_KEEPALIVE
   void snake_set_direction(int newDir) {
     if (newDir < 0 || newDir > 3 || game_over) return;
-    
-    // Buffer the direction change to apply on next move
-    // This prevents multiple direction changes between moves
-    next_dir = newDir;
+    // Determine the direction to compare against (last enqueued or current)
+    int lastDir = (dq_len > 0) ? dir_queue[dq_len - 1] : dir;
+    // Prevent direct reversal relative to the last planned direction
+    bool reverse = (lastDir == 0 && newDir == 2) || (lastDir == 2 && newDir == 0) ||
+                   (lastDir == 1 && newDir == 3) || (lastDir == 3 && newDir == 1);
+    if (reverse) return;
+    // Enqueue if space available
+    if (dq_len < 8) {
+      dir_queue[dq_len++] = newDir;
+    } else {
+      // If full, overwrite last to ensure most recent intent wins
+      dir_queue[dq_len - 1] = newDir;
+    }
   }
 
   // Autonomous update function - handles its own timing
@@ -112,16 +135,12 @@ extern "C" {
       return 1; // Still alive, but not time to move yet
     }
     
-    // Apply buffered direction change with validation
-    if (next_dir != dir) {
-      // Prevent reversing directly
-      bool valid = true;
-      if ((dir == 0 && next_dir == 2) || (dir == 2 && next_dir == 0)) valid = false; // up<->down
-      if ((dir == 1 && next_dir == 3) || (dir == 3 && next_dir == 1)) valid = false; // right<->left
-      
-      if (valid) {
-        dir = next_dir;
-      }
+    // Apply at most one queued direction per move
+    if (dq_len > 0) {
+      dir = dir_queue[0];
+      // shift left
+      for (int i = 1; i < dq_len; ++i) dir_queue[i - 1] = dir_queue[i];
+      dq_len--;
     }
     
     last_move_time = now;
@@ -186,6 +205,12 @@ extern "C" {
   EMSCRIPTEN_KEEPALIVE
   int snake_tick() {
     if (game_over) return 0;
+    // For manual tick (debug), apply queued direction if any
+    if (dq_len > 0) {
+      dir = dir_queue[0];
+      for (int i = 1; i < dq_len; ++i) dir_queue[i - 1] = dir_queue[i];
+      dq_len--;
+    }
     moves++;
 
     int head = snake_positions[snake_length - 1];

@@ -1,6 +1,8 @@
-import { useEffect, useMemo, useRef, useState, useCallback } from "react";
+import { useEffect, useRef, useState, useCallback } from "react";
 import GameContainer from "./GameContainer";
 import { useWasmLoader } from "../hooks/useWasmLoader";
+import type { WasmModule } from "../types/wasm.js";
+import "../styles/Games.css";
 
 const DIRS: Record<string, number> = {
   ArrowUp: 0,
@@ -17,19 +19,23 @@ const DIRS: Record<string, number> = {
   A: 3,
 };
 
+// Default level used internally in WASM; UI has no difficulty controls.
+const DEFAULT_LEVEL = 2;
+
 export default function PacmanGame({ onBack }: { onBack: () => void }) {
   const { wasmRef, isLoaded, error } = useWasmLoader("Pacman");
   const [gameOver, setGameOver] = useState(false);
+  const [started, setStarted] = useState(false);
   const [score, setScore] = useState(0);
   const [width, setWidth] = useState(28);
   const [board, setBoard] = useState<(string | number)[]>([]);
-  const [debug, setDebug] = useState(false);
   const [gameError, setGameError] = useState<string | null>(null);
   const animationRef = useRef<number | null>(null);
+  const touchStart = useRef<{ x: number; y: number } | null>(null);
 
   const readBoard = useCallback(() => {
     try {
-      const mod = wasmRef.current as any;
+      const mod: WasmModule | null = wasmRef.current;
       if (!mod) return;
       const w = mod._pacman_get_width?.() ?? 19;
       const h = mod._pacman_get_height?.() ?? 21;
@@ -53,10 +59,11 @@ export default function PacmanGame({ onBack }: { onBack: () => void }) {
 
   const startGame = useCallback(() => {
     try {
-      const mod = wasmRef.current as any;
+      const mod: WasmModule | null = wasmRef.current;
       if (!mod?._pacman_start_game) return;
-      mod._pacman_start_game();
+      mod._pacman_start_game(DEFAULT_LEVEL);
       setGameOver(false);
+      setStarted(true);
       setScore(0);
       setGameError(null);
       readBoard();
@@ -65,33 +72,30 @@ export default function PacmanGame({ onBack }: { onBack: () => void }) {
     }
   }, [readBoard, wasmRef]);
 
-  useEffect(() => {
-    if (!isLoaded) return;
-    const t = setTimeout(() => startGame(), 100);
-    return () => clearTimeout(t);
-  }, [isLoaded, startGame]);
+  // Do not auto-start; wait for user input
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       const dir = DIRS[e.key];
       if (dir !== undefined) {
         e.preventDefault();
-        const mod = wasmRef.current as any;
+        const mod: WasmModule | null = wasmRef.current;
+        if (!started || gameOver) startGame();
         if (mod?._pacman_set_direction) mod._pacman_set_direction(dir);
       }
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [wasmRef]);
+  }, [wasmRef, started, gameOver, startGame]);
 
   useEffect(() => {
     if (!isLoaded) return;
     let last = 0;
     const renderLoop = (ts: number) => {
       try {
-        const mod = wasmRef.current as any;
-        // Throttle updates ~10fps to keep things legible
-        if (ts - last > 100) {
+        const mod: WasmModule | null = wasmRef.current;
+        // Update loop while running; ~10fps for legibility
+        if (started && !gameOver && ts - last > 100) {
           if (mod?._pacman_update) mod._pacman_update();
           else if (mod?._pacman_tick) mod._pacman_tick();
           last = ts;
@@ -108,15 +112,7 @@ export default function PacmanGame({ onBack }: { onBack: () => void }) {
       if (animationRef.current) cancelAnimationFrame(animationRef.current);
       animationRef.current = null;
     };
-  }, [isLoaded, readBoard, wasmRef]);
-
-  const gridStyle = useMemo(
-    () => ({
-      gridTemplateColumns: `repeat(${width}, 1fr)`,
-      width: "min(92vw, 560px)",
-    }),
-    [width]
-  );
+  }, [isLoaded, readBoard, wasmRef, started, gameOver]);
 
   const classifyCell = (raw: string | number): string => {
     let char = "";
@@ -158,6 +154,26 @@ export default function PacmanGame({ onBack }: { onBack: () => void }) {
         ? "bg-red-400"
         : "bg-gray-800";
     return <div key={i} className={`aspect-square rounded-sm ${cls}`} />;
+  };
+
+  const onTouchStart = (e: React.TouchEvent) => {
+    const t = e.touches[0];
+    touchStart.current = { x: t.clientX, y: t.clientY };
+  };
+  const onTouchEnd = (e: React.TouchEvent) => {
+    if (!touchStart.current) return;
+    const t = e.changedTouches[0];
+    const dx = t.clientX - touchStart.current.x;
+    const dy = t.clientY - touchStart.current.y;
+    touchStart.current = null;
+    if (Math.abs(dx) < 12 && Math.abs(dy) < 12) return; // ignore tiny moves
+    const mod: WasmModule | null = wasmRef.current;
+    if (!mod?._pacman_set_direction) return;
+    if (Math.abs(dx) > Math.abs(dy)) {
+      mod._pacman_set_direction(dx > 0 ? 1 : 3);
+    } else {
+      mod._pacman_set_direction(dy > 0 ? 2 : 0);
+    }
   };
 
   if (error) {
@@ -217,32 +233,41 @@ export default function PacmanGame({ onBack }: { onBack: () => void }) {
           )}
         </div>
 
+        {/* No difficulty selector; Start via overlay or button below */}
+
         <div
-          className="grid gap-1 bg-gray-900 p-1.5 rounded-xl shadow-2xl mx-auto"
-          style={gridStyle}
+          className={`relative pacman-board ${
+            width === 28 ? "pacman-board-cols-28" : ""
+          }`}
+          onTouchStart={onTouchStart}
+          onTouchEnd={onTouchEnd}
+          onMouseDown={() => {
+            if (!started || gameOver) startGame();
+          }}
         >
+          {!started && !gameOver && (
+            <div className="absolute inset-0 z-10 flex items-center justify-center pointer-events-none">
+              <div className="bg-yellow-300 text-gray-900 px-6 py-3 rounded-full shadow-lg font-bold text-lg animate-pulse">
+                Click or press any key to start
+              </div>
+            </div>
+          )}
+          {gameOver && (
+            <div className="absolute inset-0 z-10 flex flex-col items-center justify-center pointer-events-none">
+              <div className="bg-red-600 text-white px-6 py-3 rounded-2xl shadow-lg font-bold text-xl mb-2">
+                Game Over — Score: {score}
+              </div>
+              <div className="bg-yellow-300 text-gray-900 px-5 py-2 rounded-full shadow font-bold text-base animate-pulse">
+                Click or press any key to restart
+              </div>
+            </div>
+          )}
           {board.map((v, i) => renderCell(classifyCell(v), i))}
         </div>
 
-        <div className="flex items-center gap-2 mt-2">
-          <button
-            className="px-4 py-2 rounded-xl bg-blue-600 text-white font-medium shadow hover:shadow-lg hover:-translate-y-0.5 transition"
-            onClick={startGame}
-          >
-            {gameOver ? "Play Again" : "Restart"}
-          </button>
-          <button
-            className={`px-3 py-2 rounded-lg text-sm ${
-              debug ? "bg-purple-600 text-white" : "bg-gray-300 text-gray-800"
-            }`}
-            onClick={() => setDebug((d) => !d)}
-            title="Toggle debug"
-          >
-            Debug: {debug ? "On" : "Off"}
-          </button>
-        </div>
-        <div className="text-gray-600 text-sm">
-          Use Arrow Keys or WASD to move
+        {/* Button removed by request: start/restart via overlay click or key */}
+        <div className="text-gray-600 text-sm text-center px-4">
+          Use Arrow Keys or WASD to move. On touch devices, swipe on the board.
         </div>
       </div>
     </GameContainer>
