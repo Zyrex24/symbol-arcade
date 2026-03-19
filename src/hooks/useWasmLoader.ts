@@ -97,8 +97,9 @@ export function useWasmLoader(moduleName: string) {
         loadedRef.current = true;
 
         // Remove any existing script tag with the same src
+        const scriptSrc = `${import.meta.env.BASE_URL}wasm/${moduleName}.js`;
         const existingScript = document.querySelector(
-          `script[src="/wasm/${moduleName}.js"]`
+          `script[src^="${scriptSrc}"]`
         );
         if (existingScript) {
           existingScript.remove();
@@ -106,7 +107,7 @@ export function useWasmLoader(moduleName: string) {
 
         // Create and load new script
         const script = document.createElement("script");
-        script.src = `/wasm/${moduleName}.js?v=${new Date().getTime()}`;
+        script.src = `${scriptSrc}?v=${new Date().getTime()}`;
         script.async = true;
 
         script.onload = async () => {
@@ -115,7 +116,7 @@ export function useWasmLoader(moduleName: string) {
             await new Promise((resolve) => setTimeout(resolve, 100));
 
             const moduleLoader = (
-              window as unknown as { Module?: () => Promise<WasmModule> }
+              window as unknown as { Module?: (args?: any) => Promise<WasmModule> }
             ).Module;
             if (moduleLoader) {
               // If someone else already instantiated while we were loading, reuse it
@@ -125,7 +126,14 @@ export function useWasmLoader(moduleName: string) {
                 return;
               }
 
-              const mod = await moduleLoader();
+              const mod = await moduleLoader({
+                locateFile: (path: string) => {
+                  if (path.endsWith('.wasm')) {
+                    return `${import.meta.env.BASE_URL}wasm/${path}`;
+                  }
+                  return path;
+                }
+              });
               console.log(
                 `[WASM LOADER] Loaded module for ${moduleName}:`,
                 mod
@@ -171,8 +179,9 @@ export function useWasmLoader(moduleName: string) {
 
     return () => {
       // Do not delete the cached module. Only remove the script tag.
+      const scriptSrc = `${import.meta.env.BASE_URL}wasm/${moduleName}.js`;
       const scriptToRemove = document.querySelector(
-        `script[src="/wasm/${moduleName}.js"]`
+        `script[src^="${scriptSrc}"]`
       );
       if (scriptToRemove) {
         scriptToRemove.remove();
