@@ -26,10 +26,12 @@ export default function SnakeGame({ onBack }: { onBack: () => void }) {
   const [started, setStarted] = useState(false);
   const [score, setScore] = useState(0);
   const [width, setWidth] = useState(20);
+  const [moveIntervalMs, setMoveIntervalMs] = useState(150);
   // height is currently fixed by WASM and not used in layout classes
   const [board, setBoard] = useState<(string | number)[]>([]);
   const [gameError, setGameError] = useState<string | null>(null);
-  const animationRef = useRef<number | null>(null);
+  const tickRef = useRef<number | null>(null);
+  const touchStartRef = useRef<{ x: number; y: number } | null>(null);
 
   // Minimal board reader - just display what C++ gives us
   const readBoard = useCallback(() => {
@@ -68,11 +70,13 @@ export default function SnakeGame({ onBack }: { onBack: () => void }) {
     try {
       const mod: WasmModule | null = wasmRef.current;
       if (!mod?._snake_start_game) return;
+      mod._snake_set_difficulty?.(2);
       mod._snake_start_game();
       setGameOver(false);
       setStarted(true);
       setScore(0);
       setGameError(null);
+      setMoveIntervalMs(mod._snake_get_move_interval_ms?.() ?? 150);
       readBoard();
     } catch (err) {
       console.error("Error in startGame:", err);
@@ -80,58 +84,63 @@ export default function SnakeGame({ onBack }: { onBack: () => void }) {
     }
   }, [readBoard, wasmRef]);
 
+  const applyDirection = useCallback(
+    (dir: number) => {
+      const mod = wasmRef.current;
+      if (!mod) return;
+      if (!started || gameOver) return;
+      mod._snake_set_direction?.(dir);
+    },
+    [gameOver, started, wasmRef]
+  );
+
   // Do not auto-start. Wait for user input (click or key press).
 
   // Simple input - just pass to C++, let C++ handle everything
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       const dir = DIRS[e.key];
-      const mod = wasmRef.current;
-      if (!mod) return;
+      if (!wasmRef.current) return;
 
       // Start or restart on any movement key
       if (dir !== undefined) {
         e.preventDefault();
-        if (!started || gameOver) {
-          startGame();
-        }
-        if (mod._snake_set_direction) {
-          mod._snake_set_direction(dir);
-        }
+        applyDirection(dir);
       }
     };
 
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [wasmRef, started, gameOver, startGame]);
+  }, [applyDirection, wasmRef]);
 
-  // Pure display loop - C++ handles its own timing, we just display
+  // Stable fixed-step loop driven by JS to avoid mixed timing jitter.
   useEffect(() => {
-    if (!isLoaded) return;
+    if (!isLoaded || !started || gameOver) return;
 
-    const renderLoop = () => {
+    if (tickRef.current !== null) {
+      window.clearInterval(tickRef.current);
+      tickRef.current = null;
+    }
+
+    tickRef.current = window.setInterval(() => {
       try {
         const mod = wasmRef.current;
-        if (started && !gameOver && mod?._snake_update) {
-          mod._snake_update(); // Only update when game is running
-        }
+        if (mod?._snake_update) mod._snake_update();
+        else if (mod?._snake_tick) mod._snake_tick();
         readBoard();
-        animationRef.current = requestAnimationFrame(renderLoop);
       } catch (err) {
         console.error("Error in render loop:", err);
         setGameError(`Render error: ${err}`);
       }
-    };
-
-    animationRef.current = requestAnimationFrame(renderLoop);
+    }, moveIntervalMs);
 
     return () => {
-      if (animationRef.current) {
-        cancelAnimationFrame(animationRef.current);
-        animationRef.current = null;
+      if (tickRef.current !== null) {
+        window.clearInterval(tickRef.current);
+        tickRef.current = null;
       }
     };
-  }, [isLoaded, readBoard, wasmRef, started, gameOver]);
+  }, [isLoaded, gameOver, moveIntervalMs, readBoard, started, wasmRef]);
 
   const classifyCell = (raw: string | number): string => {
     // Convert to string if it's a number (character code)
@@ -207,6 +216,12 @@ export default function SnakeGame({ onBack }: { onBack: () => void }) {
               Game Over
             </div>
           )}
+          <button
+            onClick={startGame}
+            className="px-4 py-1 rounded-lg bg-blue-600 hover:bg-blue-700 text-white font-semibold shadow transition-colors"
+          >
+            {!started || gameOver ? "Start Game" : "Restart"}
+          </button>
         </div>
 
         {/* Board */}
@@ -214,33 +229,36 @@ export default function SnakeGame({ onBack }: { onBack: () => void }) {
           className={`relative snake-board ${
             width === 20 ? "snake-board-cols-20" : ""
           }`}
-          onMouseDown={() => {
-            if (!started || gameOver) startGame();
-          }}
           onTouchStart={(e) => {
             e.preventDefault();
-            if (!started || gameOver) startGame();
+            if (e.touches[0]) {
+              touchStartRef.current = {
+                x: e.touches[0].clientX,
+                y: e.touches[0].clientY,
+              };
+            }
+          }}
+          onTouchMove={(e) => {
+            e.preventDefault();
+          }}
+          onTouchEnd={(e) => {
+            const start = touchStartRef.current;
+            const end = e.changedTouches[0];
+            if (!start || !end) return;
+
+            const dx = end.clientX - start.x;
+            const dy = end.clientY - start.y;
+            const threshold = 24;
+            if (Math.abs(dx) < threshold && Math.abs(dy) < threshold) return;
+
+            if (Math.abs(dx) > Math.abs(dy)) {
+              applyDirection(dx > 0 ? 1 : 3);
+            } else {
+              applyDirection(dy > 0 ? 2 : 0);
+            }
+            touchStartRef.current = null;
           }}
         >
-          {/* Start overlay */}
-          {!started && !gameOver && (
-            <div className="absolute inset-0 z-10 flex items-center justify-center pointer-events-none">
-              <div className="bg-emerald-400 text-gray-900 px-6 py-3 rounded-full shadow-lg font-bold text-lg animate-pulse">
-                Click or press any key to start
-              </div>
-            </div>
-          )}
-          {/* Game over overlay */}
-          {gameOver && (
-            <div className="absolute inset-0 z-10 flex flex-col items-center justify-center pointer-events-none">
-              <div className="bg-red-600 text-white px-6 py-3 rounded-2xl shadow-lg font-bold text-xl mb-2">
-                Game Over — Score: {score}
-              </div>
-              <div className="bg-emerald-400 text-gray-900 px-5 py-2 rounded-full shadow font-bold text-base animate-pulse">
-                Click or press any key to restart
-              </div>
-            </div>
-          )}
           {board.map((v, i) => {
             const kind = classifyCell(v);
             return (
@@ -259,7 +277,14 @@ export default function SnakeGame({ onBack }: { onBack: () => void }) {
           })}
         </div>
         <div className="text-white/80 text-sm">
-          Use Arrow Keys or WASD to move
+          {!started ? (
+            <span>Press Start Game to begin</span>
+          ) : (
+            <>
+              <span className="hidden sm:inline">Use Arrow Keys or WASD</span>
+              <span className="sm:hidden">Swipe on board to move</span>
+            </>
+          )}
         </div>
       </div>
     </GameContainer>

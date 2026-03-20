@@ -23,6 +23,19 @@ interface WasmModule {
   _ttt_check_winner?: () => number;
   _ttt_ai_move?: (difficulty: number) => number;
   _ttt_reset?: () => void;
+
+  // Snake functions
+  _snake_start_game?: () => void;
+  _snake_set_direction?: (direction: number) => void;
+  _snake_set_difficulty?: (level: number) => void;
+  _snake_tick?: () => number;
+  _snake_update?: () => number;
+  _snake_get_width?: () => number;
+  _snake_get_height?: () => number;
+  _snake_get_move_interval_ms?: () => number;
+  _snake_get_cell?: (index: number) => number;
+  _snake_get_score?: () => number;
+  _snake_is_game_over?: () => number;
   // Pacman functions
   _pacman_start_game?: () => void;
   _pacman_set_direction?: (direction: number) => void;

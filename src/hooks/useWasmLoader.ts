@@ -26,6 +26,7 @@ export interface WasmModule {
   _snake_update?: () => number;
   _snake_get_width?: () => number;
   _snake_get_height?: () => number;
+  _snake_get_move_interval_ms?: () => number;
   _snake_get_cell?: (index: number) => number;
   _snake_get_score?: () => number;
   _snake_is_game_over?: () => number;

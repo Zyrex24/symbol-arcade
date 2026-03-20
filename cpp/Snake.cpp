@@ -1,6 +1,5 @@
 #include <emscripten.h>
 #include <cstring>
-#include <chrono>
 
 extern "C" {
   // Board dimensions
@@ -27,8 +26,6 @@ extern "C" {
   static int moves;
   static bool game_running;
 
-  // Timing - C++ handles its own pace
-  static auto last_move_time = std::chrono::steady_clock::now();
   static int MOVE_INTERVAL_MS = 150; // Game speed - now configurable
 
   static void clear_board() {
@@ -84,7 +81,6 @@ extern "C" {
     game_running = true;
     place_snake_initial();
     spawn_food();
-    last_move_time = std::chrono::steady_clock::now();
   }
 
   // Set difficulty: 1=Easy, 2=Normal, 3=Hard
@@ -126,15 +122,7 @@ extern "C" {
   EMSCRIPTEN_KEEPALIVE
   int snake_update() {
     if (!game_running || game_over) return 0;
-    
-    // Check if enough time has passed for next move
-    auto now = std::chrono::steady_clock::now();
-    auto elapsed = std::chrono::duration_cast<std::chrono::milliseconds>(now - last_move_time).count();
-    
-    if (elapsed < MOVE_INTERVAL_MS) {
-      return 1; // Still alive, but not time to move yet
-    }
-    
+
     // Apply at most one queued direction per move
     if (dq_len > 0) {
       dir = dir_queue[0];
@@ -142,8 +130,7 @@ extern "C" {
       for (int i = 1; i < dq_len; ++i) dir_queue[i - 1] = dir_queue[i];
       dq_len--;
     }
-    
-    last_move_time = now;
+
     moves++;
 
     int head = snake_positions[snake_length - 1];
@@ -270,6 +257,7 @@ extern "C" {
   EMSCRIPTEN_KEEPALIVE int snake_get_score() { return score; }
   EMSCRIPTEN_KEEPALIVE int snake_get_width() { return W; }
   EMSCRIPTEN_KEEPALIVE int snake_get_height() { return H; }
+  EMSCRIPTEN_KEEPALIVE int snake_get_move_interval_ms() { return MOVE_INTERVAL_MS; }
 
   EMSCRIPTEN_KEEPALIVE unsigned char* snake_get_board() { return board; }
   EMSCRIPTEN_KEEPALIVE int snake_get_cell(int idx) {
