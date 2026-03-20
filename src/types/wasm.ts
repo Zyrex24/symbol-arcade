@@ -66,6 +66,8 @@ export interface WasmModule {
   _flappy_set_difficulty?: (level: number) => void;
   _flappy_tick?: () => number;
   _flappy_update?: () => number;
+  _flappy_has_started?: () => number;
+  _flappy_get_bird_y?: () => number;
   _flappy_get_width?: () => number;
   _flappy_get_height?: () => number;
   _flappy_get_cell?: (index: number) => number;

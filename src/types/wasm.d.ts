@@ -39,6 +39,8 @@ interface WasmModule {
   _flappy_flap?: () => void;
   _flappy_tick?: () => number;
   _flappy_update?: () => number;
+  _flappy_has_started?: () => number;
+  _flappy_get_bird_y?: () => number;
   _flappy_get_width?: () => number;
   _flappy_get_height?: () => number;
   _flappy_get_cell?: (index: number) => number;

@@ -13,7 +13,7 @@ static const int FB_WIDTH = 28;
 static const int FB_HEIGHT = 20;
 // Default to Normal difficulty implicitly
 static int PIPE_GAP = 8;            // vertical gap size (Normal)
-static const int PIPE_SPACING = 12; // columns between pipes
+static const int PIPE_SPACING = 13; // columns between pipes
 static const int BIRD_X = 6;        // fixed x position of bird
 
 // Game state
@@ -76,6 +76,8 @@ EMSCRIPTEN_KEEPALIVE int flappy_get_width() { return FB_WIDTH; }
 EMSCRIPTEN_KEEPALIVE int flappy_get_height() { return FB_HEIGHT; }
 EMSCRIPTEN_KEEPALIVE int flappy_get_score() { return fb_score; }
 EMSCRIPTEN_KEEPALIVE int flappy_is_game_over() { return fb_game_over ? 1 : 0; }
+EMSCRIPTEN_KEEPALIVE int flappy_has_started() { return fb_started ? 1 : 0; }
+EMSCRIPTEN_KEEPALIVE double flappy_get_bird_y() { return birdYf; }
 
 EMSCRIPTEN_KEEPALIVE void flappy_start_game() { fb_reset(); }
 
@@ -83,11 +85,10 @@ EMSCRIPTEN_KEEPALIVE void flappy_flap() {
   if (fb_game_over) return;
   if (!fb_started) {
     fb_started = true; // start game on first flap
-    birdVyf = -2.7;    // slightly gentler initial jump
+    birdVyf = -3.1;
     return;
   }
-  // Jump impulse (reduced to avoid overly high jumps)
-  birdVyf = -2.7;
+  birdVyf = -3.1;
 }
 
 static void add_pipe_right() {
@@ -103,13 +104,13 @@ static void update_physics() {
   if (fb_game_over || !fb_started) return;
 
   // Gravity (small acceleration each tick, reduced for smoother motion)
-  birdVyf += 0.22; // downward acceleration
+  birdVyf += 0.24;
   // Cap velocities
-  if (birdVyf > 3.5) birdVyf = 3.5;
-  if (birdVyf < -4.0) birdVyf = -4.0;
+  if (birdVyf > 3.9) birdVyf = 3.9;
+  if (birdVyf < -4.5) birdVyf = -4.5;
 
   // Integrate position with a small factor for smoother motion on coarse grids
-  birdYf += birdVyf * 0.30;
+  birdYf += birdVyf * 0.28;
 
   int birdY = (int)(birdYf + 0.5);
 
@@ -121,7 +122,7 @@ static void update_physics() {
   }
 
   // Pipe movement (moderate speed)
-  bool movedThisTick = (fb_tick % 3) == 0;
+  bool movedThisTick = (fb_tick % 5) == 0;
   if (movedThisTick) {
     for (auto &p : pipes) p.x -= 1;
   }
