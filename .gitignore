@@ -11,6 +11,11 @@ node_modules
 dist
 dist-ssr
 *.local
+wasm_build/
+public/wasm/*.js
+public/wasm/*.wasm
+package-lock.json
+cpp/.games-list.json
 
 # Editor directories and files
 .vscode/*

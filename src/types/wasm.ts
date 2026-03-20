@@ -5,7 +5,9 @@ export interface WasmModule {
 
   // Guess The Number
   _start_game?: (maxNumber: number) => void;
+  _set_hint_difficulty?: (level: number) => void;
   _make_guess?: (guess: number) => number;
+  _make_guess_hint?: (guess: number) => number;
   _get_attempts?: () => number;
 
   // Tic Tac Toe
@@ -16,6 +18,7 @@ export interface WasmModule {
   _ttt_get_board?: () => number;
   _ttt_get_cell?: (index: number) => number;
   _ttt_check_winner?: () => number;
+  _ttt_ai_move?: (difficulty: number) => number;
   _ttt_reset?: () => void;
 
   // Snake
