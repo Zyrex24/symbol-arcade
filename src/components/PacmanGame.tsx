@@ -251,6 +251,13 @@ export default function PacmanGame({ onBack }: { onBack: () => void }) {
           {board.map((v, i) => renderCell(classifyCell(v), i))}
         </div>
 
+        {gameOver && (
+          <div className="w-full max-w-md text-center bg-red-600/90 text-white rounded-xl px-4 py-3 shadow">
+            <div className="font-bold text-lg">Game Over</div>
+            <div className="text-sm opacity-95">You were caught by a ghost. Final score: {score}. Press Restart to play again.</div>
+          </div>
+        )}
+
         <div className="text-gray-600 text-sm text-center px-4">
           {!started
             ? "Press Start Game to begin"

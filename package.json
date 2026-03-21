@@ -1,12 +1,12 @@
 {
   "name": "wasm-arcade",
   "private": true,
-  "version": "1.1.0",
+  "version": "2.0.0",
   "type": "module",
   "engines": {
     "node": ">=18.0.0"
   },
-  "description": "WASM ARCADE v1.1 - High-performance mini games arcade powered by WebAssembly and C++",
+  "description": "WASM ARCADE v2.0 - High-performance mini games arcade powered by WebAssembly and C++",
   "keywords": [
     "WASM",
     "WebAssembly",
@@ -19,7 +19,7 @@
   ],
   "author": "Zyrex24, DIEMOS192",
   "license": "MIT",
-  "homepage": "https://symbol-arcade.vercel.app",
+  "homepage": "https://diemos192.github.io/symbol-arcade/",
   "repository": {
     "type": "git",
     "url": "https://github.com/Zyrex24/symbol-arcade.git"

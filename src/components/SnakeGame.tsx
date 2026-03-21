@@ -306,6 +306,12 @@ export default function SnakeGame({ onBack }: { onBack: () => void }) {
 
         {/* Board */}
         {boardView}
+        {gameOver && (
+          <div className="w-full max-w-md text-center bg-red-600/90 text-white rounded-xl px-4 py-3 shadow">
+            <div className="font-bold text-lg">You Lost</div>
+            <div className="text-sm opacity-95">Final score: {score}. Press Restart to try again.</div>
+          </div>
+        )}
         <div className="text-white/80 text-sm">
           {!started ? (
             <span>Press Start Game to begin</span>
@@ -341,7 +347,7 @@ export default function SnakeGame({ onBack }: { onBack: () => void }) {
             </button>
             {gameOver && (
               <div className="px-4 py-2 rounded-lg bg-red-600 text-white font-semibold">
-                Game Over
+                You Lost - Score {score}
               </div>
             )}
           </div>
