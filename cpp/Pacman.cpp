@@ -30,8 +30,7 @@ namespace {
   bool gameWon = false;
   int frightenedTimer = 0; // global frightened duration for simplicity
   long long tickCount = 0;
-  int ghostSpeed = 1; // ticks per move, lower is faster (Pacman update throttled in UI)
-  int ghostMoveTick = 0;
+  int ghostSpeed = 1; // ticks per move, lower is faster
 
   inline int idx(int x, int y) { return y * BOARD_WIDTH + x; }
 
@@ -116,69 +115,22 @@ namespace {
     return true;
   }
 
-  void randomMap() {
-    for (int y = 0; y < BOARD_HEIGHT; ++y) {
-      for (int x = 0; x < BOARD_WIDTH; ++x) {
-        if (x == 0 || y == 0 || x == BOARD_WIDTH-1 || y == BOARD_HEIGHT-1) {
-          baseBoard[idx(x, y)] = '#';
-        } else {
-          baseBoard[idx(x, y)] = '.';
-        }
-      }
-    }
-    // Carve random paths, ensure connectivity afterwards
-    int holes = (BOARD_WIDTH * BOARD_HEIGHT) / 3;
-    for (int i = 0; i < holes; ++i) {
-      int x = 1 + std::rand() % (BOARD_WIDTH-2);
-      int y = 1 + std::rand() % (BOARD_HEIGHT-2);
-      baseBoard[idx(x, y)] = ' ';
-    }
-    // Place power pellets at random non-wall cells
-    int placed = 0;
-    while (placed < 4) {
-      int x = 1 + std::rand() % (BOARD_WIDTH-2);
-      int y = 1 + std::rand() % (BOARD_HEIGHT-2);
-      if (!isWall(x,y) && baseBoard[idx(x,y)] == '.') {
-        baseBoard[idx(x,y)] = 'o';
-        placed++;
-      }
-    }
-    // Validate connectivity; if invalid, regenerate recursively (bounded attempts)
-    for (int attempt = 0; attempt < 4; ++attempt) {
-      if (mapIsReachableFrom(pacmanX, pacmanY)) return;
-      // regenerate holes
-      for (int y = 1; y < BOARD_HEIGHT-1; ++y) {
-        for (int x = 1; x < BOARD_WIDTH-1; ++x) {
-          baseBoard[idx(x, y)] = (std::rand()%4==0) ? ' ' : '.';
-        }
-      }
-    }
-    // Fallback: seeded map if random failed to be valid
+  void resetGame(int /*level*/ = 1) {
+    // Lite mode: fixed single map for predictable gameplay quality.
     seedMap();
-  }
-
-  void resetGame(int level = 1) {
-    if (level <= 2) seedMap();
-    else randomMap();
     pacmanX = 13; pacmanY = 23; pacmanDir = 1;
+    pacmanPendingDir = -1;
     ghosts.clear();
-    int ghostCount = 4;
-    ghostSpeed = 1;
-    if (level == 2) { ghostCount = 5; ghostSpeed = 2; }
-    if (level >= 3) { ghostCount = 6; ghostSpeed = 3; }
-    ghosts.push_back({13, 12, 2, BOARD_WIDTH-2, 1, false, 80});   // red, release early
-    ghosts.push_back({14, 12, 2, 1, 1, false, 160});              // pink
-    ghosts.push_back({12, 12, 2, 1, BOARD_HEIGHT-2, false, 240}); // blue
-    ghosts.push_back({15, 12, 2, BOARD_WIDTH-2, BOARD_HEIGHT-2, false, 320}); // orange
-    for (int i = 4; i < ghostCount; ++i) {
-      ghosts.push_back({13 + (i-4), 13, 2, BOARD_WIDTH/2, 1, false, 400 + (i-4)*80});
-    }
+    ghostSpeed = 2;
+    ghosts.push_back({13, 12, 0, BOARD_WIDTH - 2, 1, false, 60});
+    ghosts.push_back({14, 12, 1, 1, 1, false, 120});
+    ghosts.push_back({12, 12, 2, 1, BOARD_HEIGHT - 2, false, 180});
+    ghosts.push_back({15, 12, 3, BOARD_WIDTH - 2, BOARD_HEIGHT - 2, false, 240});
     score = 0;
     gameOver = false;
     gameWon = false;
     frightenedTimer = 0;
     tickCount = 0;
-    ghostMoveTick = 0;
     std::srand((unsigned int)time(NULL));
   }
 
@@ -273,55 +225,41 @@ namespace {
 
   void stepGhosts() {
     ++tickCount;
-    if (tickCount % ghostSpeed != 0) return; // ghosts move slower on lower levels
+    if (tickCount % ghostSpeed != 0) return;
     if (frightenedTimer > 0) frightenedTimer--;
-    // Mode schedule: scatter for 60 ticks every 400, otherwise chase
-    bool scatter = ((tickCount % 400) < 60);
-    for (size_t i = 0; i < ghosts.size(); ++i) {
-      auto &g = ghosts[i];
-      // Prison release timing
+
+    for (auto &g : ghosts) {
       if (!g.released) {
-        if ((int)tickCount >= g.releaseTick) {
-          g.released = true;
-        } else {
-          continue; // stay in pen until released
-        }
-      }
-      int targetX = pacmanX;
-      int targetY = pacmanY;
-      if (frightenedTimer > 0) {
-        // run away: target its scatter corner
-        targetX = g.scatterX; targetY = g.scatterY;
-      } else if (scatter) {
-        targetX = g.scatterX; targetY = g.scatterY;
-      } else {
-        // chase variations
-        int dx = (pacmanDir == 1) ? 1 : (pacmanDir == 3 ? -1 : 0);
-        int dy = (pacmanDir == 2) ? 1 : (pacmanDir == 0 ? -1 : 0);
-        if (i == 1) { // predict two tiles ahead
-          targetX = clamp(pacmanX + 2*dx, 1, BOARD_WIDTH-2);
-          targetY = clamp(pacmanY + 2*dy, 1, BOARD_HEIGHT-2);
-        } else if (i == 2) { // predict four tiles ahead
-          targetX = clamp(pacmanX + 4*dx, 1, BOARD_WIDTH-2);
-          targetY = clamp(pacmanY + 4*dy, 1, BOARD_HEIGHT-2);
-        } else if (i == 3) { // mix scatter bias
-          if ((tickCount % 80) < 20) { targetX = g.scatterX; targetY = g.scatterY; }
-        }
+        if ((int)tickCount >= g.releaseTick) g.released = true;
+        else continue;
       }
 
-      int ndir = bfsNextDir(g.x, g.y, targetX, targetY, g.dir);
-      // move
-      int ox = g.x, oy = g.y;
-      if (!moveIfFree(g.x, g.y, ndir)) {
-        // fallback try keep moving
-        if (!moveIfFree(g.x, g.y, g.dir)) {
-          // try random
-          for (int k = 0; k < 4 && !moveIfFree(g.x, g.y, k); ++k) {}
-        } else {
-          ndir = g.dir;
-        }
+      int reverseDir = (g.dir + 2) % 4;
+      int options[4];
+      int count = 0;
+      for (int d = 0; d < 4; ++d) {
+        if (d == reverseDir) continue;
+        if (canMove(g.x, g.y, d)) options[count++] = d;
       }
-      g.dir = ndir;
+
+      if (count == 0) {
+        if (canMove(g.x, g.y, reverseDir)) {
+          g.dir = reverseDir;
+          moveIfFree(g.x, g.y, g.dir);
+        }
+        continue;
+      }
+
+      bool atIntersection = count > 1;
+      bool shouldTurn = atIntersection && ((std::rand() % 100) < (frightenedTimer > 0 ? 85 : 55));
+      if (shouldTurn || !canMove(g.x, g.y, g.dir)) {
+        g.dir = options[std::rand() % count];
+      }
+
+      if (!moveIfFree(g.x, g.y, g.dir)) {
+        g.dir = options[std::rand() % count];
+        moveIfFree(g.x, g.y, g.dir);
+      }
     }
   }
 
@@ -348,6 +286,65 @@ namespace {
       if (!anyPellet) { gameWon = true; gameOver = true; }
     }
   }
+
+  void resolveCollisionWithGhost(Ghost &g) {
+    if (frightenedTimer > 0) {
+      score += 200;
+      g.x = 13;
+      g.y = 12;
+      g.dir = 2;
+      g.released = false;
+      g.releaseTick = (int)tickCount + 60;
+    } else {
+      gameOver = true;
+    }
+  }
+
+  // deterministic collision checks including tile-swap crossing
+  void checkCollisionDetailed(
+    int prevPacX,
+    int prevPacY,
+    const std::vector<int> &prevGhostX,
+    const std::vector<int> &prevGhostY
+  ) {
+    for (size_t i = 0; i < ghosts.size(); ++i) {
+      auto &g = ghosts[i];
+
+      // Same-tile overlap
+      if (g.x == pacmanX && g.y == pacmanY) {
+        resolveCollisionWithGhost(g);
+        if (gameOver) return;
+        continue;
+      }
+
+      // Crossing: Pacman and ghost swapped tiles in same tick
+      if (
+        prevPacX == g.x &&
+        prevPacY == g.y &&
+        prevGhostX[i] == pacmanX &&
+        prevGhostY[i] == pacmanY
+      ) {
+        resolveCollisionWithGhost(g);
+        if (gameOver) return;
+      }
+    }
+
+    // Win detection: no pellets or power pellets left
+    bool anyPellet = false;
+    for (int y = 0; y < BOARD_HEIGHT && !anyPellet; ++y) {
+      for (int x = 0; x < BOARD_WIDTH; ++x) {
+        char c = baseBoard[idx(x, y)];
+        if (c == '.' || c == 'o') {
+          anyPellet = true;
+          break;
+        }
+      }
+    }
+    if (!anyPellet) {
+      gameWon = true;
+      gameOver = true;
+    }
+  }
 }
 extern "C" {
   KEEPALIVE void pacman_start_game(int level) { resetGame(level); }
@@ -359,9 +356,29 @@ extern "C" {
   }
   KEEPALIVE int pacman_tick() {
     if (gameOver) return 0;
+
+    const int prevPacX = pacmanX;
+    const int prevPacY = pacmanY;
+    std::vector<int> prevGhostX;
+    std::vector<int> prevGhostY;
+    prevGhostX.reserve(ghosts.size());
+    prevGhostY.reserve(ghosts.size());
+    for (const auto &g : ghosts) {
+      prevGhostX.push_back(g.x);
+      prevGhostY.push_back(g.y);
+    }
+
     stepPacman();
+
+    // Collision right after Pacman move (before ghosts move away)
+    checkCollisionDetailed(prevPacX, prevPacY, prevGhostX, prevGhostY);
+    if (gameOver) return 0;
+
     stepGhosts();
-    checkCollision();
+
+    // Collision after ghosts moved, including crossing/swap cases
+    checkCollisionDetailed(prevPacX, prevPacY, prevGhostX, prevGhostY);
+
     return gameOver ? 0 : 1;
   }
   KEEPALIVE int pacman_update() { return pacman_tick(); }

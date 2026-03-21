@@ -30,6 +30,7 @@ export default function SnakeGame({ onBack }: { onBack: () => void }) {
   // height is currently fixed by WASM and not used in layout classes
   const [board, setBoard] = useState<(string | number)[]>([]);
   const [gameError, setGameError] = useState<string | null>(null);
+  const [focusMode, setFocusMode] = useState(false);
   const tickRef = useRef<number | null>(null);
   const touchStartRef = useRef<{ x: number; y: number } | null>(null);
 
@@ -142,6 +143,27 @@ export default function SnakeGame({ onBack }: { onBack: () => void }) {
     };
   }, [isLoaded, gameOver, moveIntervalMs, readBoard, started, wasmRef]);
 
+  // Focus mode turns snake into a dedicated play window and prevents page scroll.
+  useEffect(() => {
+    if (!focusMode) return;
+
+    const originalOverflow = document.body.style.overflow;
+    const originalTouchAction = document.body.style.touchAction;
+    document.body.style.overflow = "hidden";
+    document.body.style.touchAction = "none";
+
+    const blockScroll = (e: TouchEvent) => {
+      e.preventDefault();
+    };
+    document.addEventListener("touchmove", blockScroll, { passive: false });
+
+    return () => {
+      document.body.style.overflow = originalOverflow;
+      document.body.style.touchAction = originalTouchAction;
+      document.removeEventListener("touchmove", blockScroll);
+    };
+  }, [focusMode]);
+
   const classifyCell = (raw: string | number): string => {
     // Convert to string if it's a number (character code)
     let char = "";
@@ -159,6 +181,58 @@ export default function SnakeGame({ onBack }: { onBack: () => void }) {
     // Fallback for any unexpected values
     return "empty";
   };
+
+  const boardView = (
+    <div
+      className={`relative snake-board ${width === 20 ? "snake-board-cols-20" : ""}`}
+      onTouchStart={(e) => {
+        e.preventDefault();
+        if (e.touches[0]) {
+          touchStartRef.current = {
+            x: e.touches[0].clientX,
+            y: e.touches[0].clientY,
+          };
+        }
+      }}
+      onTouchMove={(e) => {
+        e.preventDefault();
+      }}
+      onTouchEnd={(e) => {
+        const start = touchStartRef.current;
+        const end = e.changedTouches[0];
+        if (!start || !end) return;
+
+        const dx = end.clientX - start.x;
+        const dy = end.clientY - start.y;
+        const threshold = 24;
+        if (Math.abs(dx) < threshold && Math.abs(dy) < threshold) return;
+
+        if (Math.abs(dx) > Math.abs(dy)) {
+          applyDirection(dx > 0 ? 1 : 3);
+        } else {
+          applyDirection(dy > 0 ? 2 : 0);
+        }
+        touchStartRef.current = null;
+      }}
+    >
+      {board.map((v, i) => {
+        const kind = classifyCell(v);
+        return (
+          <div
+            key={i}
+            className={
+              `aspect-square rounded-sm ` +
+              (kind === "snake"
+                ? "bg-emerald-400"
+                : kind === "food"
+                ? "bg-amber-500"
+                : "bg-gray-700")
+            }
+          />
+        );
+      })}
+    </div>
+  );
 
   if (error) {
     return (
@@ -222,60 +296,16 @@ export default function SnakeGame({ onBack }: { onBack: () => void }) {
           >
             {!started || gameOver ? "Start Game" : "Restart"}
           </button>
+          <button
+            onClick={() => setFocusMode(true)}
+            className="px-4 py-1 rounded-lg bg-purple-600 hover:bg-purple-700 text-white font-semibold shadow transition-colors sm:hidden"
+          >
+            Open Play Window
+          </button>
         </div>
 
         {/* Board */}
-        <div
-          className={`relative snake-board ${
-            width === 20 ? "snake-board-cols-20" : ""
-          }`}
-          onTouchStart={(e) => {
-            e.preventDefault();
-            if (e.touches[0]) {
-              touchStartRef.current = {
-                x: e.touches[0].clientX,
-                y: e.touches[0].clientY,
-              };
-            }
-          }}
-          onTouchMove={(e) => {
-            e.preventDefault();
-          }}
-          onTouchEnd={(e) => {
-            const start = touchStartRef.current;
-            const end = e.changedTouches[0];
-            if (!start || !end) return;
-
-            const dx = end.clientX - start.x;
-            const dy = end.clientY - start.y;
-            const threshold = 24;
-            if (Math.abs(dx) < threshold && Math.abs(dy) < threshold) return;
-
-            if (Math.abs(dx) > Math.abs(dy)) {
-              applyDirection(dx > 0 ? 1 : 3);
-            } else {
-              applyDirection(dy > 0 ? 2 : 0);
-            }
-            touchStartRef.current = null;
-          }}
-        >
-          {board.map((v, i) => {
-            const kind = classifyCell(v);
-            return (
-              <div
-                key={i}
-                className={
-                  `aspect-square rounded-sm ` +
-                  (kind === "snake"
-                    ? "bg-emerald-400"
-                    : kind === "food"
-                    ? "bg-amber-500"
-                    : "bg-gray-700")
-                }
-              />
-            );
-          })}
-        </div>
+        {boardView}
         <div className="text-white/80 text-sm">
           {!started ? (
             <span>Press Start Game to begin</span>
@@ -287,6 +317,36 @@ export default function SnakeGame({ onBack }: { onBack: () => void }) {
           )}
         </div>
       </div>
+
+      {focusMode && (
+        <div className="fixed inset-0 z-50 bg-black/95 flex flex-col items-center justify-center p-4 sm:hidden">
+          <div className="w-full max-w-md flex items-center justify-between mb-3 text-white">
+            <div className="px-3 py-1 rounded-lg bg-emerald-600 shadow">Score: {score}</div>
+            <button
+              onClick={() => setFocusMode(false)}
+              className="px-3 py-1 rounded-lg bg-gray-700 text-white font-semibold"
+            >
+              Close
+            </button>
+          </div>
+
+          <div className="w-full max-w-md">{boardView}</div>
+
+          <div className="mt-3 flex gap-3">
+            <button
+              onClick={startGame}
+              className="px-4 py-2 rounded-lg bg-blue-600 text-white font-semibold"
+            >
+              {!started || gameOver ? "Start" : "Restart"}
+            </button>
+            {gameOver && (
+              <div className="px-4 py-2 rounded-lg bg-red-600 text-white font-semibold">
+                Game Over
+              </div>
+            )}
+          </div>
+        </div>
+      )}
     </GameContainer>
   );
 }

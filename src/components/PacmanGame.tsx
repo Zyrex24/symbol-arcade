@@ -30,7 +30,7 @@ export default function PacmanGame({ onBack }: { onBack: () => void }) {
   const [width, setWidth] = useState(28);
   const [board, setBoard] = useState<(string | number)[]>([]);
   const [gameError, setGameError] = useState<string | null>(null);
-  const animationRef = useRef<number | null>(null);
+  const tickRef = useRef<number | null>(null);
   const touchStart = useRef<{ x: number; y: number } | null>(null);
 
   const readBoard = useCallback(() => {
@@ -80,7 +80,7 @@ export default function PacmanGame({ onBack }: { onBack: () => void }) {
       if (dir !== undefined) {
         e.preventDefault();
         const mod: WasmModule | null = wasmRef.current;
-        if (!started || gameOver) startGame();
+        if (!started || gameOver) return;
         if (mod?._pacman_set_direction) mod._pacman_set_direction(dir);
       }
     };
@@ -89,28 +89,30 @@ export default function PacmanGame({ onBack }: { onBack: () => void }) {
   }, [wasmRef, started, gameOver, startGame]);
 
   useEffect(() => {
-    if (!isLoaded) return;
-    let last = 0;
-    const renderLoop = (ts: number) => {
+    if (!isLoaded || !started || gameOver) return;
+
+    if (tickRef.current !== null) {
+      window.clearInterval(tickRef.current);
+      tickRef.current = null;
+    }
+
+    tickRef.current = window.setInterval(() => {
       try {
         const mod: WasmModule | null = wasmRef.current;
-        // Update loop while running; ~10fps for legibility
-        if (started && !gameOver && ts - last > 100) {
-          if (mod?._pacman_update) mod._pacman_update();
-          else if (mod?._pacman_tick) mod._pacman_tick();
-          last = ts;
-        }
+        if (mod?._pacman_update) mod._pacman_update();
+        else if (mod?._pacman_tick) mod._pacman_tick();
         readBoard();
-        animationRef.current = requestAnimationFrame(renderLoop);
       } catch (err) {
         console.error("[PACMAN] renderLoop error:", err);
         setGameError(String(err));
       }
-    };
-    animationRef.current = requestAnimationFrame(renderLoop);
+    }, 90);
+
     return () => {
-      if (animationRef.current) cancelAnimationFrame(animationRef.current);
-      animationRef.current = null;
+      if (tickRef.current !== null) {
+        window.clearInterval(tickRef.current);
+        tickRef.current = null;
+      }
     };
   }, [isLoaded, readBoard, wasmRef, started, gameOver]);
 
@@ -168,7 +170,7 @@ export default function PacmanGame({ onBack }: { onBack: () => void }) {
     touchStart.current = null;
     if (Math.abs(dx) < 12 && Math.abs(dy) < 12) return; // ignore tiny moves
     const mod: WasmModule | null = wasmRef.current;
-    if (!mod?._pacman_set_direction) return;
+    if (!mod?._pacman_set_direction || !started || gameOver) return;
     if (Math.abs(dx) > Math.abs(dy)) {
       mod._pacman_set_direction(dx > 0 ? 1 : 3);
     } else {
@@ -231,9 +233,13 @@ export default function PacmanGame({ onBack }: { onBack: () => void }) {
               Game Over
             </div>
           )}
+          <button
+            onClick={startGame}
+            className="px-4 py-1 rounded-lg bg-blue-600 hover:bg-blue-700 text-white font-semibold shadow transition-colors"
+          >
+            {!started || gameOver ? "Start Game" : "Restart"}
+          </button>
         </div>
-
-        {/* No difficulty selector; Start via overlay or button below */}
 
         <div
           className={`relative pacman-board ${
@@ -241,33 +247,14 @@ export default function PacmanGame({ onBack }: { onBack: () => void }) {
           }`}
           onTouchStart={onTouchStart}
           onTouchEnd={onTouchEnd}
-          onMouseDown={() => {
-            if (!started || gameOver) startGame();
-          }}
         >
-          {!started && !gameOver && (
-            <div className="absolute inset-0 z-10 flex items-center justify-center pointer-events-none">
-              <div className="bg-yellow-300 text-gray-900 px-6 py-3 rounded-full shadow-lg font-bold text-lg animate-pulse">
-                Click or press any key to start
-              </div>
-            </div>
-          )}
-          {gameOver && (
-            <div className="absolute inset-0 z-10 flex flex-col items-center justify-center pointer-events-none">
-              <div className="bg-red-600 text-white px-6 py-3 rounded-2xl shadow-lg font-bold text-xl mb-2">
-                Game Over — Score: {score}
-              </div>
-              <div className="bg-yellow-300 text-gray-900 px-5 py-2 rounded-full shadow font-bold text-base animate-pulse">
-                Click or press any key to restart
-              </div>
-            </div>
-          )}
           {board.map((v, i) => renderCell(classifyCell(v), i))}
         </div>
 
-        {/* Button removed by request: start/restart via overlay click or key */}
         <div className="text-gray-600 text-sm text-center px-4">
-          Use Arrow Keys or WASD to move. On touch devices, swipe on the board.
+          {!started
+            ? "Press Start Game to begin"
+            : "Use Arrow Keys/WASD on desktop or swipe on mobile."}
         </div>
       </div>
     </GameContainer>
